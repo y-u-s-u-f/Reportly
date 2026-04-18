@@ -78,6 +78,7 @@ export default function QuickSubmitTab({
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+  const [needsInfoMsg, setNeedsInfoMsg] = useState(null);
   const fileInputRef = useRef(null);
 
   function detectLocation() {
@@ -240,10 +241,9 @@ export default function QuickSubmitTab({
       resetForm({ keepResult: true });
     } catch (err) {
       if (err?.needsMoreInfo) {
-        toast.show(
+        setNeedsInfoMsg(
           err.message ||
-            "Not enough info to classify — add a voice note or description",
-          "error",
+            "We couldn't identify a civic issue from what you submitted.",
         );
         return;
       }
@@ -404,6 +404,13 @@ export default function QuickSubmitTab({
 
       {result && <ResultCard result={result} />}
 
+      {needsInfoMsg && (
+        <NeedsInfoModal
+          message={needsInfoMsg}
+          onClose={() => setNeedsInfoMsg(null)}
+        />
+      )}
+
       {editingLocation && coords && (
         <LocationModal
           coords={coords}
@@ -416,6 +423,35 @@ export default function QuickSubmitTab({
           onClose={() => setEditingLocation(false)}
         />
       )}
+    </div>
+  );
+}
+
+function NeedsInfoModal({ message, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[1100] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white dark:bg-zinc-900 p-6 shadow-2xl space-y-4">
+        <div className="flex flex-col items-center text-center">
+          <div className="h-16 w-16 rounded-2xl inline-flex items-center justify-center bg-amber-100 dark:bg-amber-900/40 mb-3">
+            <AlertTriangle size={28} className="text-amber-600 dark:text-amber-300" />
+          </div>
+          <h3 className="text-lg font-bold">Can't file this yet</h3>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">
+            {message}
+          </p>
+          <p className="mt-3 text-xs text-zinc-500">
+            Nothing was saved. Add a clearer photo, a written description, or
+            tap the mic to dictate — then try again.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full min-h-[48px] rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-semibold"
+        >
+          Got it
+        </button>
+      </div>
     </div>
   );
 }

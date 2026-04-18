@@ -28,8 +28,10 @@ export async function classifyReport({ description, imageBase64 }) {
   const openai = getOpenAI();
   if (!openai) return heuristicFallback(description, !!imageBase64);
 
+  const hasDescription = (description || "").trim().length > 0;
   const userContent = [{ type: "text", text: description || "(no description)" }];
-  if (imageBase64) {
+  // Skip vision when we already have a description — saves tokens + latency.
+  if (imageBase64 && !hasDescription) {
     userContent.push({
       type: "image_url",
       image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
