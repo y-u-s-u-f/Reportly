@@ -100,14 +100,22 @@ export default function MapTab({ refreshKey }) {
       loadHeatPlugin().then(() => {
         if (!mapRef.current) return;
         const points = open.map((r) => {
-          const intensity = r.severity === "high" ? 1 : r.severity === "medium" ? 0.6 : 0.3;
+          const intensity = r.severity === "high" ? 1 : r.severity === "medium" ? 0.8 : 0.55;
           return [r.latitude, r.longitude, intensity];
         });
         heatRef.current = window.L.heatLayer(points, {
-          radius: 28,
-          blur: 22,
+          radius: 55,
+          blur: 30,
           maxZoom: 17,
-          gradient: { 0.3: "#10b981", 0.6: "#f59e0b", 0.9: "#ef4444" },
+          minOpacity: 0.5,
+          max: 1.2,
+          gradient: {
+            0.2: "#10b981",
+            0.45: "#84cc16",
+            0.65: "#f59e0b",
+            0.85: "#ef4444",
+            1.0: "#991b1b",
+          },
         }).addTo(map);
       });
     } else {
