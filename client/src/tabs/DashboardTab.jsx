@@ -4,6 +4,7 @@ import { assetUrl, deleteReport, fetchReports, updateStatus } from "../lib/api.j
 import { SeverityBadge, DepartmentBadge } from "../components/Badges.jsx";
 import StatusSteps from "../components/StatusSteps.jsx";
 import EditReportModal from "../components/EditReportModal.jsx";
+import PhotoCarousel from "../components/PhotoCarousel.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { notify, statusLabel } from "../lib/notify.js";
 import { timeAgo } from "../lib/time.js";
@@ -112,14 +113,18 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
               key={r.id}
               className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3"
             >
+              {r.photos?.length > 1 && (
+                <PhotoCarousel photos={r.photos.map(assetUrl)} />
+              )}
+
               <div className="flex gap-3">
-                {r.photos?.[0] ? (
+                {r.photos?.length === 1 ? (
                   <img
                     src={assetUrl(r.photos[0])}
                     alt=""
                     className="h-16 w-16 rounded-xl object-cover shrink-0"
                   />
-                ) : (
+                ) : r.photos?.length > 1 ? null : (
                   <div className="h-16 w-16 rounded-xl bg-zinc-100 dark:bg-zinc-800 shrink-0 inline-flex items-center justify-center text-zinc-400">
                     <MapPin size={20} />
                   </div>

@@ -96,8 +96,12 @@ export default function MapTab({ refreshKey }) {
         const marker = L.marker([r.latitude, r.longitude], {
           icon: severityIcon(r.severity),
         });
+        const extra = (r.photos?.length || 0) - 1;
         const photo = r.photos?.[0]
-          ? `<img src="${assetUrl(r.photos[0])}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:8px;" />`
+          ? `<div style="position:relative;margin-bottom:8px">
+              <img src="${assetUrl(r.photos[0])}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;display:block" />
+              ${extra > 0 ? `<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px">+${extra} more</div>` : ""}
+            </div>`
           : "";
         marker.bindPopup(`
           <div style="min-width:200px;font-family:Satoshi,sans-serif">
