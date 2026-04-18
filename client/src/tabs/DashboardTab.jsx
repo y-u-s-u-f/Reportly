@@ -13,12 +13,14 @@ import {
   Send,
   Loader2,
   X,
+  Mail,
 } from "lucide-react";
 import {
   addComment,
   addPhotosToReport,
   assetUrl,
   deleteReport,
+  draftAuthorityEmail,
   fetchReports,
   updateStatus,
   upvoteReport,
@@ -288,6 +290,11 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
                 onSuccess={(msg) => toast.show(msg, "success")}
               />
 
+              <NotifyAuthoritiesButton
+                report={r}
+                onError={(msg) => toast.show(msg, "error")}
+              />
+
               {admin && (
                 <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-zinc-100 dark:border-zinc-800">
                   <button
@@ -531,6 +538,45 @@ function CommentModal({ report, onClose, onAdded, onError }) {
         </div>
       </form>
     </div>
+  );
+}
+
+function NotifyAuthoritiesButton({ report, onError }) {
+  const [busy, setBusy] = useState(false);
+
+  async function handleClick() {
+    setBusy(true);
+    try {
+      const { to, subject, body } = await draftAuthorityEmail(report.id);
+      const href =
+        "mailto:" +
+        encodeURIComponent(to) +
+        "?subject=" +
+        encodeURIComponent(subject) +
+        "&body=" +
+        encodeURIComponent(body);
+      window.location.href = href;
+    } catch (err) {
+      onError?.(err.message || "Couldn't draft email");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={busy}
+      className="w-full min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-200 text-sm font-semibold px-3 py-2 disabled:opacity-60 border border-red-200 dark:border-red-900/60"
+    >
+      {busy ? (
+        <Loader2 size={16} className="animate-spin" />
+      ) : (
+        <Mail size={16} />
+      )}
+      {busy ? "Drafting email…" : "Notify authorities"}
+    </button>
   );
 }
 

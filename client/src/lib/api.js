@@ -140,6 +140,17 @@ export async function addPhotosToReport(id, files) {
   return res.json();
 }
 
+export async function draftAuthorityEmail(id) {
+  const res = await fetch(`${BASE}/api/reports/${id}/email-draft`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to draft email");
+  }
+  return res.json();
+}
+
 export async function addComment(id, text) {
   const res = await fetch(`${BASE}/api/reports/${id}/comments`, {
     method: "POST",
