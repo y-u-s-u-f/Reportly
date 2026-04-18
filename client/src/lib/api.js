@@ -103,6 +103,20 @@ export async function updateReport(id, fields) {
   return res.json();
 }
 
+export async function postStatusUpdate(id, text) {
+  const res = await fetch(`${BASE}/api/reports/${id}/status-updates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ text }),
+  });
+  handleAuthResponse(res);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to post update");
+  }
+  return res.json();
+}
+
 export async function deleteReport(id) {
   const res = await fetch(`${BASE}/api/reports/${id}`, {
     method: "DELETE",

@@ -35,6 +35,10 @@ export default function ReportPopup({ report: initial, photos }) {
   }
 
   const comments = Array.isArray(report.comments) ? report.comments : [];
+  const updates = Array.isArray(report.statusUpdates) ? report.statusUpdates : [];
+  const latestUpdate = updates.length
+    ? [...updates].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]
+    : null;
 
   return (
     <div className="min-w-[220px] max-w-[260px]" style={{ color: "#0c1414" }}>
@@ -76,6 +80,21 @@ export default function ReportPopup({ report: initial, photos }) {
           </span>
         )}
       </div>
+
+      {latestUpdate && (
+        <div
+          className="mb-2 rounded-lg p-2 text-xs"
+          style={{ background: "#ecfeff", border: "1px solid #a5f3fc" }}
+        >
+          <div
+            className="text-[10px] font-bold uppercase tracking-wider mb-0.5"
+            style={{ color: "#0e7490" }}
+          >
+            Latest update · {timeAgo(latestUpdate.createdAt)}
+          </div>
+          <div style={{ color: "#0c1414" }}>{latestUpdate.text}</div>
+        </div>
+      )}
 
       {comments.length > 0 && (
         <div

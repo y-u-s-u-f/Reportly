@@ -23,6 +23,7 @@ model Report {
   affectedCount Int      @default(1)
   photos        String[]
   comments      Json     @default("[]")
+  statusUpdates Json     @default("[]")
   upvoterIds    String[] @default([])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

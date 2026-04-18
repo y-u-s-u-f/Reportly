@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Inbox,
-  RefreshCw,
   Users,
   MapPin,
   Pencil,
@@ -14,6 +13,8 @@ import {
   Loader2,
   X,
   Mail,
+  Megaphone,
+  Activity,
 } from "lucide-react";
 import {
   addComment,
@@ -22,11 +23,10 @@ import {
   deleteReport,
   draftAuthorityEmail,
   fetchReports,
-  updateStatus,
+  postStatusUpdate,
   upvoteReport,
 } from "../lib/api.js";
 import { SeverityBadge, DepartmentBadge, SEVERITY_COLOR } from "../components/Badges.jsx";
-import StatusSteps from "../components/StatusSteps.jsx";
 import EditReportModal from "../components/EditReportModal.jsx";
 import PhotoCarousel from "../components/PhotoCarousel.jsx";
 import SafeImg from "../components/SafeImg.jsx";
@@ -40,10 +40,10 @@ const NEARBY_RADIUS_M = 25 * MILE_M;
 
 export default function DashboardTab({ refreshKey, onChange, admin }) {
   const [reports, setReports] = useState(null);
-  const [updating, setUpdating] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [editing, setEditing] = useState(null);
   const [commenting, setCommenting] = useState(null);
+  const [postingUpdate, setPostingUpdate] = useState(null);
   const [coords, setCoords] = useState(null);
   const toast = useToast();
 
@@ -92,26 +92,6 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 8);
   }, [coords, reports]);
-
-  async function cycleStatus(report) {
-    setUpdating(report.id);
-    try {
-      const updated = await updateStatus(report.id);
-      setReports((prev) =>
-        prev ? prev.map((r) => (r.id === updated.id ? updated : r)) : prev,
-      );
-      notify(
-        "Reportly",
-        `Your report on ${updated.issueType || "issue"} has been updated to ${statusLabel(updated.status)}`,
-      );
-      toast.show(`Status → ${statusLabel(updated.status)}`, "success");
-      onChange?.();
-    } catch (err) {
-      toast.show(err.message || "Failed to update status", "error");
-    } finally {
-      setUpdating(null);
-    }
-  }
 
   async function handleDelete(report) {
     if (!confirm(`Delete this ${report.issueType || "report"}? This cannot be undone.`)) {
@@ -252,7 +232,9 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
                 </p>
               )}
 
-              <StatusSteps status={r.status} />
+              {Array.isArray(r.statusUpdates) && r.statusUpdates.length > 0 && (
+                <StatusUpdatesThread updates={r.statusUpdates} />
+              )}
 
               <div className="flex items-center justify-between text-xs text-zinc-500">
                 <div className="flex items-center gap-1 truncate min-w-0">
@@ -299,15 +281,11 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
                 <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-zinc-100 dark:border-zinc-800">
                   <button
                     type="button"
-                    onClick={() => cycleStatus(r)}
-                    disabled={updating === r.id}
-                    className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-teal-500 hover:bg-teal-600 disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5"
+                    onClick={() => setPostingUpdate(r)}
+                    className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold px-3 py-1.5"
                   >
-                    <RefreshCw
-                      size={12}
-                      className={updating === r.id ? "animate-spin" : ""}
-                    />
-                    Next status
+                    <Megaphone size={12} />
+                    Post update
                   </button>
                   <button
                     type="button"
@@ -356,6 +334,123 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
           onError={(msg) => toast.show(msg, "error")}
         />
       )}
+
+      {postingUpdate && (
+        <StatusUpdateModal
+          report={postingUpdate}
+          onClose={() => setPostingUpdate(null)}
+          onPosted={(updated) => {
+            replaceReport(updated);
+            setPostingUpdate(null);
+            toast.show("Update posted", "success");
+            notify(
+              "Reportly",
+              `New update on ${updated.issueType || "a report"}`,
+            );
+          }}
+          onError={(msg) => toast.show(msg, "error")}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatusUpdatesThread({ updates }) {
+  const sorted = [...updates].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+  );
+  return (
+    <div className="rounded-xl border border-teal-200 dark:border-teal-900/60 bg-teal-50/50 dark:bg-teal-900/20 p-3">
+      <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase tracking-wider font-bold text-teal-700 dark:text-teal-200">
+        <Activity size={12} />
+        Status updates
+      </div>
+      <ol className="space-y-2">
+        {sorted.map((u, i) => (
+          <li key={`${u.createdAt}-${i}`} className="flex gap-2 text-xs">
+            <span
+              className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
+                i === 0 ? "bg-teal-500" : "bg-teal-300 dark:bg-teal-700"
+              }`}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-zinc-800 dark:text-zinc-100 leading-snug">
+                {u.text}
+              </p>
+              <p className="text-[10px] text-zinc-500 mt-0.5">
+                {timeAgo(u.createdAt)}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function StatusUpdateModal({ report, onClose, onPosted, onError }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const t = text.trim();
+    if (!t) return;
+    setBusy(true);
+    try {
+      const updated = await postStatusUpdate(report.id, t);
+      onPosted?.(updated);
+    } catch (err) {
+      onError?.(err.message || "Failed to post update");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1100] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-xl space-y-3"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <Megaphone size={18} className="text-teal-500" />
+            Post status update
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <p className="text-xs text-zinc-500">
+          On: {report.issueType || "Civic issue"}. Residents will see this as the latest update.
+        </p>
+        <textarea
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="e.g. 'Team dispatched — crew on scene within the hour.'"
+          rows={3}
+          maxLength={500}
+          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-zinc-500">{text.length}/500</span>
+          <button
+            type="submit"
+            disabled={busy || !text.trim()}
+            className="min-h-[44px] rounded-full bg-teal-500 hover:bg-teal-600 disabled:opacity-60 text-white font-semibold inline-flex items-center justify-center gap-2 px-5"
+          >
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={14} />}
+            Post
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

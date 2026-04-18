@@ -296,6 +296,33 @@ router.patch("/:id", requireAdmin, async (req, res) => {
   }
 });
 
+router.post("/:id/status-updates", requireAdmin, async (req, res) => {
+  try {
+    const text = String(req.body?.text || "").trim();
+    if (!text) return res.status(400).json({ error: "text required" });
+    if (text.length > 500) {
+      return res.status(400).json({ error: "update too long (max 500 chars)" });
+    }
+    const current = await prisma.report.findUnique({
+      where: { id: req.params.id },
+      select: { statusUpdates: true },
+    });
+    if (!current) return res.status(404).json({ error: "Report not found" });
+    const next = Array.isArray(current.statusUpdates)
+      ? [...current.statusUpdates]
+      : [];
+    next.push({ text, createdAt: new Date().toISOString() });
+    const updated = await prisma.report.update({
+      where: { id: req.params.id },
+      data: { statusUpdates: next },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error("status-update post error:", err);
+    res.status(500).json({ error: "Failed to post update" });
+  }
+});
+
 router.delete("/:id", requireAdmin, async (req, res) => {
   try {
     await prisma.report.delete({ where: { id: req.params.id } });
