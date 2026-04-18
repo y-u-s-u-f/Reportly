@@ -27,6 +27,33 @@ import { enqueueReport } from "../lib/offlineQueue.js";
 
 const MAX_PHOTOS = 3;
 
+const AUDIO_MIME_CANDIDATES = [
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/mp4",
+  "audio/mp4;codecs=mp4a.40.2",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+];
+
+function pickAudioMime() {
+  if (typeof MediaRecorder === "undefined") return "";
+  for (const c of AUDIO_MIME_CANDIDATES) {
+    if (MediaRecorder.isTypeSupported?.(c)) return c;
+  }
+  return "";
+}
+
+function mimeToExt(type = "") {
+  if (type.includes("webm")) return "webm";
+  if (type.includes("mp4")) return "mp4";
+  if (type.includes("mpeg")) return "mp3";
+  if (type.includes("wav")) return "wav";
+  if (type.includes("ogg")) return "ogg";
+  return "webm";
+}
+
 export default function QuickSubmitTab({ online, onQueueChange, onSubmitted }) {
   const toast = useToast();
   const [photos, setPhotos] = useState([]);
@@ -134,21 +161,27 @@ export default function QuickSubmitTab({ online, onQueueChange, onSubmitted }) {
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      const preferredMime = pickAudioMime();
+      const mr = new MediaRecorder(
+        stream,
+        preferredMime ? { mimeType: preferredMime } : undefined,
+      );
       chunksRef.current = [];
       mr.ondataavailable = (ev) => {
         if (ev.data.size > 0) chunksRef.current.push(ev.data);
       };
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const actualType = mr.mimeType || preferredMime || "audio/webm";
+        const ext = mimeToExt(actualType);
+        const blob = new Blob(chunksRef.current, { type: actualType });
         setRecording(false);
         setTranscribing(true);
         try {
-          const { text } = await transcribeAudio(blob);
+          const { text } = await transcribeAudio(blob, `voice.${ext}`);
           if (text) setDescription((d) => (d ? `${d} ${text}` : text));
-        } catch {
-          toast.show("Transcription failed", "error");
+        } catch (err) {
+          toast.show(err.message || "Transcription failed", "error");
         } finally {
           setTranscribing(false);
         }

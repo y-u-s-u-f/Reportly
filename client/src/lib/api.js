@@ -62,11 +62,14 @@ export async function submitReport({ description, latitude, longitude, address, 
   return res.json();
 }
 
-export async function transcribeAudio(blob) {
+export async function transcribeAudio(blob, filename = "voice.webm") {
   const fd = new FormData();
-  fd.append("audio", blob, "voice.webm");
+  fd.append("audio", blob, filename);
   const res = await fetch(`${BASE}/api/transcribe`, { method: "POST", body: fd });
-  if (!res.ok) throw new Error("Transcription failed");
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Transcription failed");
+  }
   return res.json();
 }
 

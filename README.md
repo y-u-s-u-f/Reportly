@@ -99,13 +99,14 @@ git push origin main   # create the GitHub repo first if you haven't
 2. Pick this repo. Render reads `render.yaml` and provisions:
    - A free Postgres database (`reportly-db`)
    - A free web service (`reportly-api`) wired to that DB
-3. When prompted, fill the two `sync: false` env vars:
+3. When prompted, fill the `sync: false` env vars:
    - `ADMIN_PASSWORD` → e.g. `system123`
    - `OPENAI_API_KEY` → your key
+   - `CLOUDINARY_URL` → from your Cloudinary dashboard (format `cloudinary://API_KEY:API_SECRET@CLOUD_NAME`). Free tier is plenty. Leave blank to fall back to local-disk storage (photos won't survive restarts).
 4. First build runs `prisma db push` automatically.
 5. Note the resulting URL, e.g. `https://reportly-api.onrender.com`.
 
-> **Free-tier caveats**: the web service sleeps after 15 min idle (~30 s cold start), and uploaded photos live only on the running instance — they vanish on restart. To keep photos, upgrade to a paid plan and add a `disk:` block to [render.yaml](render.yaml) mounted at `server/uploads`.
+> **Free-tier caveat**: the web service sleeps after 15 min idle (~30 s cold start). With `CLOUDINARY_URL` set, uploaded photos persist across restarts; without it, they live only on the current instance.
 
 ### 3. Deploy the client on Vercel (uses [client/vercel.json](client/vercel.json))
 

@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { prisma } from "../lib/prisma.js";
 import { classifyReport } from "../lib/classify.js";
 import { haversineMeters } from "../lib/geo.js";
+import { persistPhoto } from "../lib/storage.js";
 import { requireAdmin } from "./auth.js";
 
 const uploadsDir = path.resolve("uploads");
@@ -57,12 +58,12 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
       return res.status(400).json({ error: "latitude and longitude required" });
     }
 
-    const photos = (req.files || []).map((f) => `/uploads/${f.filename}`);
-
     let imageBase64 = null;
     if (req.files && req.files[0]) {
       imageBase64 = fs.readFileSync(req.files[0].path).toString("base64");
     }
+
+    const photos = await Promise.all((req.files || []).map(persistPhoto));
 
     const classification = await classifyReport({ description, imageBase64 });
 
