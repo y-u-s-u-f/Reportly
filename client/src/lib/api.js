@@ -1,4 +1,5 @@
 import { authHeaders, setToken } from "./auth.js";
+import { getDeviceId } from "./device.js";
 
 const BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
@@ -55,6 +56,7 @@ export async function submitReport({ description, latitude, longitude, address, 
   fd.append("latitude", String(latitude));
   fd.append("longitude", String(longitude));
   if (address) fd.append("address", address);
+  fd.append("userId", getDeviceId());
   for (const p of photos || []) fd.append("photos", p);
 
   const res = await fetch(`${BASE}/api/reports`, { method: "POST", body: fd });
@@ -108,8 +110,13 @@ export async function deleteReport(id) {
 export async function upvoteReport(id) {
   const res = await fetch(`${BASE}/api/reports/${id}/upvote`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: getDeviceId() }),
   });
-  if (!res.ok) throw new Error("Upvote failed");
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Upvote failed");
+  }
   return res.json();
 }
 

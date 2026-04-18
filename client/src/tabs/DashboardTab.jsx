@@ -32,6 +32,7 @@ import { useToast } from "../components/Toast.jsx";
 import { notify, statusLabel } from "../lib/notify.js";
 import { timeAgo } from "../lib/time.js";
 import { formatDistance, haversineMeters, ipGeolocate, MILE_M } from "../lib/geo.js";
+import { getDeviceId } from "../lib/device.js";
 
 const NEARBY_RADIUS_M = 25 * MILE_M;
 
@@ -356,6 +357,14 @@ function CommunityActions({ report, onUpdated, onCommentClick, onError, onSucces
   const [upvoting, setUpvoting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
+  const deviceId = getDeviceId();
+  const isOwner = !!report.userId && report.userId === deviceId;
+  const alreadyUpvoted = (report.upvoterIds || []).includes(deviceId);
+  const upvoteLabel = isOwner
+    ? "Your report"
+    : alreadyUpvoted
+      ? "Upvoted"
+      : "Upvote";
 
   async function handleUpvote() {
     setUpvoting(true);
@@ -391,15 +400,26 @@ function CommunityActions({ report, onUpdated, onCommentClick, onError, onSucces
       <button
         type="button"
         onClick={handleUpvote}
-        disabled={upvoting}
-        className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-200 text-xs font-semibold px-3 py-1.5 disabled:opacity-60"
+        disabled={upvoting || isOwner || alreadyUpvoted}
+        title={
+          isOwner
+            ? "You can't upvote your own report"
+            : alreadyUpvoted
+              ? "You've already upvoted this"
+              : undefined
+        }
+        className={`min-h-[36px] inline-flex items-center gap-1.5 rounded-full text-xs font-semibold px-3 py-1.5 disabled:cursor-not-allowed ${
+          alreadyUpvoted
+            ? "bg-teal-500 text-white disabled:opacity-80"
+            : "bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-200 disabled:opacity-50"
+        }`}
       >
         {upvoting ? (
           <Loader2 size={12} className="animate-spin" />
         ) : (
           <ThumbsUp size={12} />
         )}
-        Upvote
+        {upvoteLabel}
       </button>
       <button
         type="button"

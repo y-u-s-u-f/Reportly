@@ -5,19 +5,30 @@ import { SEVERITY_COLOR } from "./Badges.jsx";
 import { statusLabel } from "../lib/notify.js";
 import { timeAgo } from "../lib/time.js";
 import { upvoteReport } from "../lib/api.js";
+import { getDeviceId } from "../lib/device.js";
 
 export default function ReportPopup({ report: initial, photos }) {
   const [report, setReport] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const commentCount = Array.isArray(report.comments) ? report.comments.length : 0;
+  const deviceId = getDeviceId();
+  const isOwner = !!report.userId && report.userId === deviceId;
+  const alreadyUpvoted = (report.upvoterIds || []).includes(deviceId);
+  const upvoteLabel = isOwner
+    ? "Your report"
+    : alreadyUpvoted
+      ? "Upvoted"
+      : "I'm affected too";
 
   async function handleUpvote() {
     setBusy(true);
+    setErrorMsg("");
     try {
       const updated = await upvoteReport(report.id);
       setReport(updated);
-    } catch {
-      /* ignore — the map list will re-fetch on next open */
+    } catch (err) {
+      setErrorMsg(err.message || "Upvote failed");
     } finally {
       setBusy(false);
     }
@@ -93,16 +104,30 @@ export default function ReportPopup({ report: initial, photos }) {
       <button
         type="button"
         onClick={handleUpvote}
-        disabled={busy}
-        className="w-full min-h-[36px] inline-flex items-center justify-center gap-1.5 rounded-full bg-teal-500 hover:bg-teal-600 disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5"
+        disabled={busy || isOwner || alreadyUpvoted}
+        className={`w-full min-h-[36px] inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-semibold px-3 py-1.5 text-white disabled:cursor-not-allowed ${
+          alreadyUpvoted
+            ? "bg-teal-600 disabled:opacity-90"
+            : isOwner
+              ? "bg-zinc-400 disabled:opacity-100"
+              : "bg-teal-500 hover:bg-teal-600 disabled:opacity-60"
+        }`}
       >
         {busy ? (
           <Loader2 size={12} className="animate-spin" />
         ) : (
           <ThumbsUp size={12} />
         )}
-        I'm affected too
+        {upvoteLabel}
       </button>
+      {errorMsg && (
+        <div
+          className="mt-1.5 text-[11px] text-center"
+          style={{ color: "#b91c1c" }}
+        >
+          {errorMsg}
+        </div>
+      )}
     </div>
   );
 }

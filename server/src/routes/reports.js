@@ -89,15 +89,32 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
           createdAt: new Date().toISOString(),
         });
       }
+
+      const submitterId = (userId || "").trim();
+      const alreadyCounted =
+        submitterId &&
+        (duplicate.userId === submitterId ||
+          (duplicate.upvoterIds || []).includes(submitterId));
+
+      const updateData = {
+        photos: mergedPhotos,
+        comments: mergedComments,
+      };
+      if (submitterId && !alreadyCounted) {
+        updateData.affectedCount = { increment: 1 };
+        updateData.upvoterIds = { push: submitterId };
+      }
+
       const updated = await prisma.report.update({
         where: { id: duplicate.id },
-        data: {
-          affectedCount: { increment: 1 },
-          photos: mergedPhotos,
-          comments: mergedComments,
-        },
+        data: updateData,
       });
-      return res.json({ report: updated, duplicate: true, classification });
+      return res.json({
+        report: updated,
+        duplicate: true,
+        classification,
+        alreadyCounted,
+      });
     }
 
     const report = await prisma.report.create({
@@ -127,9 +144,22 @@ const SEVERITIES = ["low", "medium", "high"];
 
 router.post("/:id/upvote", async (req, res) => {
   try {
+    const userId = String(req.body?.userId || "").trim();
+    if (!userId) return res.status(400).json({ error: "Missing device id" });
+    const report = await prisma.report.findUnique({ where: { id: req.params.id } });
+    if (!report) return res.status(404).json({ error: "Report not found" });
+    if (report.userId && report.userId === userId) {
+      return res.status(403).json({ error: "You can't upvote your own report" });
+    }
+    if ((report.upvoterIds || []).includes(userId)) {
+      return res.status(409).json({ error: "You already upvoted this" });
+    }
     const updated = await prisma.report.update({
       where: { id: req.params.id },
-      data: { affectedCount: { increment: 1 } },
+      data: {
+        affectedCount: { increment: 1 },
+        upvoterIds: { push: userId },
+      },
     });
     res.json(updated);
   } catch (err) {
