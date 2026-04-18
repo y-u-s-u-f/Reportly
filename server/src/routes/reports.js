@@ -1,0 +1,176 @@
+import { Router } from "express";
+import multer from "multer";
+import path from "node:path";
+import fs from "node:fs";
+import { prisma } from "../lib/prisma.js";
+import { classifyReport } from "../lib/classify.js";
+import { haversineMeters } from "../lib/geo.js";
+import { requireAdmin } from "./auth.js";
+
+const uploadsDir = path.resolve("uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: uploadsDir,
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || ".jpg";
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+  },
+});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+
+const router = Router();
+const MILE_M = 1609.344;
+const DUPLICATE_RADIUS_M = 0.5 * MILE_M;
+
+router.get("/", async (_req, res) => {
+  const reports = await prisma.report.findMany({ orderBy: { createdAt: "desc" } });
+  res.json(reports);
+});
+
+router.get("/nearby", async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+  const issueType = req.query.issueType;
+  if (Number.isNaN(lat) || Number.isNaN(lon)) {
+    return res.status(400).json({ error: "lat and lon required" });
+  }
+  const candidates = await prisma.report.findMany({
+    where: {
+      status: { not: "resolved" },
+      ...(issueType ? { issueType } : {}),
+    },
+  });
+  const nearby = candidates
+    .map((r) => ({ ...r, distance: haversineMeters(lat, lon, r.latitude, r.longitude) }))
+    .filter((r) => r.distance <= DUPLICATE_RADIUS_M)
+    .sort((a, b) => a.distance - b.distance);
+  res.json(nearby);
+});
+
+router.post("/", upload.array("photos", 3), async (req, res) => {
+  try {
+    const { description = "", latitude, longitude, address, userId } = req.body;
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    if (Number.isNaN(lat) || Number.isNaN(lon)) {
+      return res.status(400).json({ error: "latitude and longitude required" });
+    }
+
+    const photos = (req.files || []).map((f) => `/uploads/${f.filename}`);
+
+    let imageBase64 = null;
+    if (req.files && req.files[0]) {
+      imageBase64 = fs.readFileSync(req.files[0].path).toString("base64");
+    }
+
+    const classification = await classifyReport({ description, imageBase64 });
+
+    const candidates = await prisma.report.findMany({
+      where: { status: { not: "resolved" } },
+    });
+    const duplicate = candidates
+      .map((r) => ({ r, distance: haversineMeters(lat, lon, r.latitude, r.longitude) }))
+      .filter((x) => x.distance <= DUPLICATE_RADIUS_M)
+      .sort((a, b) => a.distance - b.distance)[0]?.r;
+
+    if (duplicate) {
+      const mergedPhotos = Array.from(
+        new Set([...(duplicate.photos || []), ...photos]),
+      );
+      const updated = await prisma.report.update({
+        where: { id: duplicate.id },
+        data: {
+          affectedCount: { increment: 1 },
+          photos: mergedPhotos,
+        },
+      });
+      return res.json({ report: updated, duplicate: true, classification });
+    }
+
+    const report = await prisma.report.create({
+      data: {
+        userId: userId || null,
+        description,
+        latitude: lat,
+        longitude: lon,
+        address: address || null,
+        photos,
+        issueType: classification.issueType,
+        department: classification.department,
+        severity: classification.severity,
+        summary: classification.summary,
+      },
+    });
+
+    res.json({ report, duplicate: false, classification });
+  } catch (err) {
+    console.error("create report error:", err);
+    res.status(500).json({ error: "Failed to create report" });
+  }
+});
+
+const STATUS_FLOW = ["received", "assigned", "in_progress", "resolved"];
+const SEVERITIES = ["low", "medium", "high"];
+
+router.patch("/:id/status", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    let nextStatus = status;
+    if (!nextStatus) {
+      const current = await prisma.report.findUnique({ where: { id } });
+      if (!current) return res.status(404).json({ error: "Report not found" });
+      const idx = STATUS_FLOW.indexOf(current.status);
+      nextStatus = STATUS_FLOW[(idx + 1) % STATUS_FLOW.length];
+    }
+    if (!STATUS_FLOW.includes(nextStatus)) {
+      return res.status(400).json({ error: "invalid status" });
+    }
+    const updated = await prisma.report.update({
+      where: { id },
+      data: { status: nextStatus },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error("status update error:", err);
+    res.status(500).json({ error: "Failed to update status" });
+  }
+});
+
+router.patch("/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const allowed = ["status", "severity", "department", "issueType", "summary", "description"];
+    const data = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) data[key] = req.body[key];
+    }
+    if (data.status && !STATUS_FLOW.includes(data.status)) {
+      return res.status(400).json({ error: "invalid status" });
+    }
+    if (data.severity && !SEVERITIES.includes(data.severity)) {
+      return res.status(400).json({ error: "invalid severity" });
+    }
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: "no fields to update" });
+    }
+    const updated = await prisma.report.update({ where: { id }, data });
+    res.json(updated);
+  } catch (err) {
+    console.error("update error:", err);
+    res.status(500).json({ error: "Failed to update report" });
+  }
+});
+
+router.delete("/:id", requireAdmin, async (req, res) => {
+  try {
+    await prisma.report.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("delete error:", err);
+    res.status(500).json({ error: "Failed to delete report" });
+  }
+});
+
+export default router;

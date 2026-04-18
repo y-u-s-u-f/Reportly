@@ -1,0 +1,27 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Report {
+  id            String   @id @default(cuid())
+  userId        String?
+  description   String
+  issueType     String?
+  department    String?
+  severity      String?
+  summary       String?
+  status        String   @default("received")
+  latitude      Float
+  longitude     Float
+  address       String?
+  affectedCount Int      @default(1)
+  photos        String[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
