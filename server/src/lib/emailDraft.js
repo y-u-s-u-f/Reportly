@@ -1,14 +1,59 @@
 import { getOpenAI } from "./openai.js";
 
-export const DEPARTMENT_EMAILS = {
-  "Roads & Transport": "roads@city.example.gov",
-  Sanitation: "sanitation@city.example.gov",
-  "Parks & Recreation": "parks@city.example.gov",
-  Utilities: "utilities@city.example.gov",
-  "Public Safety": "safety@city.example.gov",
-  "Water & Drainage": "water@city.example.gov",
-  "General Services": "services@city.example.gov",
-};
+const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+const emailCache = new Map(); // key: `${locality}::${department}` → { email, at }
+
+function localityFromAddress(address = "") {
+  // Nominatim display_name: "Street, City, County, State, ZIP, Country"
+  const parts = address
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length >= 3) {
+    // Keep the last 3-4 segments: usually City, State/County, Country
+    return parts.slice(-4).join(", ");
+  }
+  return address;
+}
+
+export async function findDepartmentEmail(report) {
+  const openai = getOpenAI();
+  const department = report.department || "General Services";
+  const locality =
+    localityFromAddress(report.address) ||
+    (typeof report.latitude === "number" && typeof report.longitude === "number"
+      ? `${report.latitude.toFixed(4)}, ${report.longitude.toFixed(4)}`
+      : "");
+  if (!locality || !openai) return null;
+
+  const cacheKey = `${locality.toLowerCase()}::${department.toLowerCase()}`;
+  const cached = emailCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return cached.email;
+  }
+
+  const prompt =
+    `Find the official public email address that a resident should use to file a ${department} complaint for the municipality serving "${locality}". ` +
+    `Prefer a 311 or department-specific inbox published on the city's official .gov or equivalent website. ` +
+    `Respond with ONLY the email address, no other text. If you cannot find one, respond with exactly: NONE`;
+
+  try {
+    const response = await openai.responses.create({
+      model: "gpt-4o",
+      tools: [{ type: "web_search_preview" }],
+      input: prompt,
+    });
+    const raw = (response.output_text || "").trim();
+    const match = raw.match(EMAIL_RE);
+    const email = match ? match[0].toLowerCase() : null;
+    emailCache.set(cacheKey, { email, at: Date.now() });
+    return email;
+  } catch (err) {
+    console.error("department email lookup error:", err.message);
+    return null;
+  }
+}
 
 function shape(report) {
   return {

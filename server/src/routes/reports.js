@@ -6,7 +6,7 @@ import { prisma } from "../lib/prisma.js";
 import { classifyReport } from "../lib/classify.js";
 import { haversineMeters } from "../lib/geo.js";
 import { persistPhoto } from "../lib/storage.js";
-import { draftAuthorityEmail, DEPARTMENT_EMAILS } from "../lib/emailDraft.js";
+import { draftAuthorityEmail, findDepartmentEmail } from "../lib/emailDraft.js";
 import { requireAdmin } from "./auth.js";
 
 const uploadsDir = path.resolve("uploads");
@@ -210,10 +210,11 @@ router.post("/:id/email-draft", async (req, res) => {
       where: { id: req.params.id },
     });
     if (!report) return res.status(404).json({ error: "Report not found" });
-    const { subject, body } = await draftAuthorityEmail(report);
-    const to =
-      DEPARTMENT_EMAILS[report.department] ||
-      DEPARTMENT_EMAILS["General Services"];
+    const [{ subject, body }, lookedUpEmail] = await Promise.all([
+      draftAuthorityEmail(report),
+      findDepartmentEmail(report),
+    ]);
+    const to = lookedUpEmail || "311@yourcity.gov";
     res.json({ to, subject, body });
   } catch (err) {
     console.error("email draft error:", err);
