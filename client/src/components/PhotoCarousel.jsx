@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import SafeImg from "./SafeImg.jsx";
 
 export default function PhotoCarousel({ photos, className = "" }) {
   const scrollerRef = useRef(null);
@@ -32,12 +33,12 @@ export default function PhotoCarousel({ photos, className = "" }) {
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {photos.map((src, i) => (
-          <img
+          <SafeImg
             key={`${src}-${i}`}
             src={src}
-            alt=""
             loading="lazy"
             className="w-full shrink-0 snap-start object-cover"
+            fallbackClassName="w-full shrink-0 snap-start aspect-video"
           />
         ))}
       </div>
