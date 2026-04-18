@@ -84,7 +84,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
-      <header className="sticky top-0 z-30 bg-white/90 dark:bg-zinc-900/90 backdrop-blur border-b border-zinc-200 dark:border-zinc-800">
+      <header className="sticky top-0 z-[1001] bg-white/90 dark:bg-zinc-900/90 backdrop-blur border-b border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-2xl flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <Logo className="h-7 w-7" />
@@ -137,7 +137,7 @@ function AppShell() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-t border-zinc-200 dark:border-zinc-800">
+      <nav className="fixed bottom-0 inset-x-0 z-[1001] bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-t border-zinc-200 dark:border-zinc-800">
         <div className="mx-auto max-w-2xl relative grid grid-cols-2">
           <TabButton
             active={tab === "dashboard"}
