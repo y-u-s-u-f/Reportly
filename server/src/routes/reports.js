@@ -79,11 +79,22 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
       const mergedPhotos = Array.from(
         new Set([...(duplicate.photos || []), ...photos]),
       );
+      const mergedComments = Array.isArray(duplicate.comments)
+        ? [...duplicate.comments]
+        : [];
+      const trimmed = (description || "").trim();
+      if (trimmed) {
+        mergedComments.push({
+          text: trimmed,
+          createdAt: new Date().toISOString(),
+        });
+      }
       const updated = await prisma.report.update({
         where: { id: duplicate.id },
         data: {
           affectedCount: { increment: 1 },
           photos: mergedPhotos,
+          comments: mergedComments,
         },
       });
       return res.json({ report: updated, duplicate: true, classification });

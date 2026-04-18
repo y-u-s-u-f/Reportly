@@ -3,6 +3,7 @@ import { Loader2, MessageSquare, ThumbsUp } from "lucide-react";
 import PhotoCarousel from "./PhotoCarousel.jsx";
 import { SEVERITY_COLOR } from "./Badges.jsx";
 import { statusLabel } from "../lib/notify.js";
+import { timeAgo } from "../lib/time.js";
 import { upvoteReport } from "../lib/api.js";
 
 export default function ReportPopup({ report: initial, photos }) {
@@ -22,29 +23,39 @@ export default function ReportPopup({ report: initial, photos }) {
     }
   }
 
+  const comments = Array.isArray(report.comments) ? report.comments : [];
+
   return (
-    <div className="min-w-[220px] max-w-[260px]">
+    <div className="min-w-[220px] max-w-[260px]" style={{ color: "#0c1414" }}>
       {photos?.length ? <PhotoCarousel photos={photos} className="mb-2" /> : null}
-      <div className="font-bold text-sm mb-1">{report.issueType || "Civic issue"}</div>
+      <div className="font-bold text-sm mb-1" style={{ color: "#0c1414" }}>
+        {report.issueType || "Civic issue"}
+      </div>
       {report.department && (
         <div className="text-xs font-semibold mb-1" style={{ color: "#01696f" }}>
           {report.department}
         </div>
       )}
       {report.description && (
-        <p className="text-xs text-zinc-700 dark:text-zinc-200 mb-1.5 leading-snug line-clamp-3">
+        <p
+          className="text-xs mb-1.5 leading-snug line-clamp-3"
+          style={{ color: "#0c1414" }}
+        >
           {report.description}
         </p>
       )}
-      <div className="text-xs flex items-center gap-2 mb-1">
+      <div className="text-xs flex items-center gap-2 mb-1" style={{ color: "#0c1414" }}>
         <span
           className="inline-block h-2.5 w-2.5 rounded-full"
           style={{ background: SEVERITY_COLOR[report.severity] || "#6b7280" }}
         />
         <span className="capitalize">{report.severity || "unknown"}</span>
-        <span className="text-zinc-500">· {statusLabel(report.status)}</span>
+        <span style={{ color: "#6b7280" }}>· {statusLabel(report.status)}</span>
       </div>
-      <div className="text-xs text-zinc-500 mb-2 flex items-center gap-3">
+      <div
+        className="text-xs mb-2 flex items-center gap-3"
+        style={{ color: "#52525b" }}
+      >
         <span>
           {report.affectedCount} {report.affectedCount === 1 ? "person" : "people"} affected
         </span>
@@ -54,6 +65,31 @@ export default function ReportPopup({ report: initial, photos }) {
           </span>
         )}
       </div>
+
+      {comments.length > 0 && (
+        <div
+          className="mb-2 rounded-lg p-2 space-y-1.5 max-h-32 overflow-y-auto"
+          style={{ background: "#f4f4f5" }}
+        >
+          {[...comments]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 5)
+            .map((c, i) => (
+              <div key={`${c.createdAt}-${i}`} className="text-xs leading-snug">
+                <span style={{ color: "#0c1414" }}>{c.text}</span>
+                <span className="ml-1.5" style={{ color: "#71717a" }}>
+                  {timeAgo(c.createdAt)}
+                </span>
+              </div>
+            ))}
+          {comments.length > 5 && (
+            <div className="text-[10px]" style={{ color: "#71717a" }}>
+              +{comments.length - 5} more on the dashboard
+            </div>
+          )}
+        </div>
+      )}
+
       <button
         type="button"
         onClick={handleUpvote}
