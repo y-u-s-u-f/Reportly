@@ -11,7 +11,11 @@ const DEPARTMENTS = [
 ];
 
 const SYSTEM_PROMPT =
-  "You are a city operations classifier. Given this civic issue description and image, return a JSON object with: { issueType: string, department: string, severity: 'low' | 'medium' | 'high', summary: string }. Department must be one of: Roads & Transport, Sanitation, Parks & Recreation, Utilities, Public Safety, Water & Drainage, General Services.";
+  "You are a city operations classifier. Given a civic issue description and optional image, return JSON: { issueType: string, department: string, severity: 'low' | 'medium' | 'high', summary: string }.\n" +
+  "- issueType: a short (1-3 word) specific category in Title Case, e.g. 'Pothole', 'Broken Streetlight', 'Illegal Dumping', 'Graffiti', 'Water Leak', 'Flooding', 'Downed Tree', 'Damaged Sidewalk', 'Abandoned Vehicle', 'Noise Complaint', 'Broken Signage', 'Fallen Branch', 'Vehicle Accident'. Never answer 'Unknown', 'Other', 'N/A', or empty — always choose the closest plausible civic category even when the input is vague.\n" +
+  "- department must be one of: Roads & Transport, Sanitation, Parks & Recreation, Utilities, Public Safety, Water & Drainage, General Services.\n" +
+  "- severity: 'low' for cosmetic/minor, 'medium' for nuisance that should be addressed soon, 'high' for safety hazard or emergency.\n" +
+  "- summary: a single sentence under 140 characters describing the issue in plain language.";
 
 export async function classifyReport({ description, imageBase64 }) {
   const openai = getOpenAI();
@@ -43,6 +47,15 @@ export async function classifyReport({ description, imageBase64 }) {
   }
 }
 
+const VAGUE_ISSUE = /^(unknown|other|n\/?a|none|unclear)$/i;
+
+function titleCase(s) {
+  return s
+    .split(/\s+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
+}
+
 function normalize(parsed, description) {
   const department = DEPARTMENTS.includes(parsed.department)
     ? parsed.department
@@ -50,8 +63,14 @@ function normalize(parsed, description) {
   const severity = ["low", "medium", "high"].includes(parsed.severity)
     ? parsed.severity
     : "medium";
+
+  const rawIssue = (parsed.issueType || "").trim();
+  const useFallbackType = !rawIssue || VAGUE_ISSUE.test(rawIssue);
+  const fallback = heuristicFallback(description);
+  const issueType = useFallbackType ? fallback.issueType : titleCase(rawIssue);
+
   return {
-    issueType: parsed.issueType || "Other",
+    issueType,
     department,
     severity,
     summary: parsed.summary || description?.slice(0, 140) || "Civic issue",
@@ -61,7 +80,7 @@ function normalize(parsed, description) {
 function heuristicFallback(description = "") {
   const text = description.toLowerCase();
   let department = "General Services";
-  let issueType = "Other";
+  let issueType = "Civic Issue";
   if (/(pothole|road|street|traffic|sign|crosswalk)/.test(text)) {
     department = "Roads & Transport";
     issueType = "Road Damage";
