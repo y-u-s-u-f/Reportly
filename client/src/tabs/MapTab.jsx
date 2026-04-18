@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 import L from "leaflet";
 import { Flame, MapPin } from "lucide-react";
 import { assetUrl, fetchReports } from "../lib/api.js";
 import { SEVERITY_COLOR } from "../components/Badges.jsx";
-import { statusLabel } from "../lib/notify.js";
+import ReportPopup from "../components/ReportPopup.jsx";
 
 let heatPluginPromise = null;
 function loadHeatPlugin() {
@@ -61,10 +62,29 @@ export default function MapTab({ refreshKey }) {
   }, [refreshKey]);
 
   useEffect(() => {
+    return () => {
+      if (layerRef.current) {
+        layerRef.current.eachLayer((m) => {
+          if (m._reactRoot) queueMicrotask(() => m._reactRoot.unmount());
+        });
+      }
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     if (layerRef.current) {
+      layerRef.current.eachLayer((m) => {
+        if (m._reactRoot) {
+          queueMicrotask(() => m._reactRoot.unmount());
+        }
+      });
       layerRef.current.remove();
       layerRef.current = null;
     }
@@ -96,26 +116,13 @@ export default function MapTab({ refreshKey }) {
         const marker = L.marker([r.latitude, r.longitude], {
           icon: severityIcon(r.severity),
         });
-        const extra = (r.photos?.length || 0) - 1;
-        const photo = r.photos?.[0]
-          ? `<div style="position:relative;margin-bottom:8px">
-              <img src="${assetUrl(r.photos[0])}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;display:block" />
-              ${extra > 0 ? `<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.65);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px">+${extra} more</div>` : ""}
-            </div>`
-          : "";
-        marker.bindPopup(`
-          <div style="min-width:200px;font-family:Satoshi,sans-serif">
-            ${photo}
-            <div style="font-weight:700;font-size:14px;margin-bottom:4px">${escapeHtml(r.issueType || "Civic issue")}</div>
-            <div style="font-size:12px;color:#01696f;font-weight:600;margin-bottom:4px">${escapeHtml(r.department || "")}</div>
-            <div style="font-size:12px;display:flex;gap:8px;align-items:center;margin-bottom:4px">
-              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${SEVERITY_COLOR[r.severity] || "#6b7280"}"></span>
-              <span style="text-transform:capitalize">${escapeHtml(r.severity || "")}</span>
-              <span style="color:#6b7280">· ${escapeHtml(statusLabel(r.status))}</span>
-            </div>
-            <div style="font-size:12px;color:#6b7280">${r.affectedCount} affected</div>
-          </div>
-        `);
+        const node = document.createElement("div");
+        const root = createRoot(node);
+        root.render(
+          <ReportPopup report={r} photos={(r.photos || []).map(assetUrl)} />,
+        );
+        marker._reactRoot = root;
+        marker.bindPopup(node, { minWidth: 240, maxWidth: 280 });
         marker.addTo(group);
       });
       group.addTo(map);
@@ -159,11 +166,3 @@ function LegendRow({ color, label }) {
   );
 }
 
-function escapeHtml(str = "") {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
