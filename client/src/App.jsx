@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { Moon, Sun, FileEdit, Map as MapIcon, BarChart2, WifiOff } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Moon, Sun, Camera, Map as MapIcon, BarChart2, WifiOff } from "lucide-react";
 import Logo from "./components/Logo.jsx";
 import AdminBar from "./components/AdminBar.jsx";
 import { ToastProvider, useToast } from "./components/Toast.jsx";
@@ -34,7 +34,19 @@ function AppShell() {
   const [pending, setPending] = useState(queueSize());
   const [refreshKey, setRefreshKey] = useState(0);
   const [admin, setAdmin] = useState(isAdmin());
+  const [initialCapture, setInitialCapture] = useState(null);
+  const captureInputRef = useRef(null);
   const toast = useToast();
+
+  function handleQuickSubmit() {
+    setTab("submit");
+    captureInputRef.current?.click();
+  }
+  function handleCaptureChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) setInitialCapture(file);
+  }
 
   useEffect(() => onAuthChange(() => setAdmin(isAdmin())), []);
 
@@ -105,12 +117,14 @@ function AppShell() {
         )}
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-2xl pb-28">
+      <main className="flex-1 mx-auto w-full max-w-2xl pb-32">
         {tab === "submit" && (
           <QuickSubmitTab
             online={online}
             onQueueChange={() => setPending(queueSize())}
             onSubmitted={triggerRefresh}
+            initialCapture={initialCapture}
+            onCaptureConsumed={() => setInitialCapture(null)}
           />
         )}
         {tab === "map" && <MapTab refreshKey={refreshKey} />}
@@ -139,16 +153,24 @@ function AppShell() {
           />
           <button
             type="button"
-            onClick={() => setTab("submit")}
-            aria-label="Quick submit"
-            className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 h-20 w-20 rounded-full shadow-xl inline-flex items-center justify-center text-white transition ${
+            onClick={handleQuickSubmit}
+            aria-label="Quick report — open camera"
+            className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[55%] h-24 w-24 rounded-full shadow-2xl inline-flex items-center justify-center text-white transition ${
               tab === "submit"
                 ? "bg-teal-600 ring-4 ring-teal-500/30"
                 : "bg-teal-500 hover:bg-teal-600"
             }`}
           >
-            <FileEdit size={32} />
+            <Camera size={38} />
           </button>
+          <input
+            ref={captureInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleCaptureChange}
+          />
         </div>
       </nav>
     </div>
