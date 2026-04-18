@@ -1,25 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import L from "leaflet";
-import { Flame, MapPin } from "lucide-react";
 import { assetUrl, fetchReports } from "../lib/api.js";
 import { SEVERITY_COLOR } from "../components/Badges.jsx";
 import ReportPopup from "../components/ReportPopup.jsx";
-
-let heatPluginPromise = null;
-function loadHeatPlugin() {
-  if (window.L && window.L.heatLayer) return Promise.resolve();
-  if (heatPluginPromise) return heatPluginPromise;
-  heatPluginPromise = new Promise((resolve, reject) => {
-    window.L = L;
-    const script = document.createElement("script");
-    script.src = "https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js";
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load heatmap plugin"));
-    document.head.appendChild(script);
-  });
-  return heatPluginPromise;
-}
 
 function severityIcon(sev) {
   const color = SEVERITY_COLOR[sev] || "#6b7280";
@@ -35,9 +19,7 @@ export default function MapTab({ refreshKey }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
-  const heatRef = useRef(null);
   const [reports, setReports] = useState([]);
-  const [heat, setHeat] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -88,71 +70,31 @@ export default function MapTab({ refreshKey }) {
       layerRef.current.remove();
       layerRef.current = null;
     }
-    if (heatRef.current) {
-      heatRef.current.remove();
-      heatRef.current = null;
-    }
 
     const open = reports.filter((r) => r.status !== "resolved");
     if (open.length === 0) return;
 
-    if (heat) {
-      loadHeatPlugin().then(() => {
-        if (!mapRef.current) return;
-        const points = open.map((r) => {
-          const intensity = r.severity === "high" ? 1 : r.severity === "medium" ? 0.8 : 0.55;
-          return [r.latitude, r.longitude, intensity];
-        });
-        heatRef.current = window.L.heatLayer(points, {
-          radius: 55,
-          blur: 30,
-          maxZoom: 17,
-          minOpacity: 0.5,
-          max: 1.2,
-          gradient: {
-            0.2: "#10b981",
-            0.45: "#84cc16",
-            0.65: "#f59e0b",
-            0.85: "#ef4444",
-            1.0: "#991b1b",
-          },
-        }).addTo(map);
+    const group = L.layerGroup();
+    open.forEach((r) => {
+      const marker = L.marker([r.latitude, r.longitude], {
+        icon: severityIcon(r.severity),
       });
-    } else {
-      const group = L.layerGroup();
-      open.forEach((r) => {
-        const marker = L.marker([r.latitude, r.longitude], {
-          icon: severityIcon(r.severity),
-        });
-        const node = document.createElement("div");
-        const root = createRoot(node);
-        root.render(
-          <ReportPopup report={r} photos={(r.photos || []).map(assetUrl)} />,
-        );
-        marker._reactRoot = root;
-        marker.bindPopup(node, { minWidth: 240, maxWidth: 280 });
-        marker.addTo(group);
-      });
-      group.addTo(map);
-      layerRef.current = group;
-    }
-  }, [reports, heat]);
+      const node = document.createElement("div");
+      const root = createRoot(node);
+      root.render(
+        <ReportPopup report={r} photos={(r.photos || []).map(assetUrl)} />,
+      );
+      marker._reactRoot = root;
+      marker.bindPopup(node, { minWidth: 240, maxWidth: 280 });
+      marker.addTo(group);
+    });
+    group.addTo(map);
+    layerRef.current = group;
+  }, [reports]);
 
   return (
     <div className="relative h-[calc(100vh-9rem)]">
       <div ref={containerRef} className="absolute inset-0" />
-      <button
-        type="button"
-        onClick={() => setHeat((h) => !h)}
-        className={`absolute top-3 right-3 z-[400] min-h-[44px] inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-md transition ${
-          heat
-            ? "bg-teal-500 text-white"
-            : "bg-white text-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
-        }`}
-      >
-        {heat ? <Flame size={16} /> : <MapPin size={16} />}
-        Heatmap
-      </button>
       <div className="absolute bottom-3 left-3 z-[400] rounded-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur px-3 py-2 shadow-md text-xs">
         <div className="font-semibold mb-1.5">Severity</div>
         <div className="space-y-1">
@@ -173,4 +115,3 @@ function LegendRow({ color, label }) {
     </div>
   );
 }
-
