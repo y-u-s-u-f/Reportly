@@ -1,19 +1,32 @@
-import { useEffect, useState } from "react";
-import { Inbox, RefreshCw, Users, MapPin, Pencil, Trash2, Lock } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Inbox,
+  RefreshCw,
+  Users,
+  MapPin,
+  Pencil,
+  Trash2,
+  Lock,
+  Compass,
+} from "lucide-react";
 import { assetUrl, deleteReport, fetchReports, updateStatus } from "../lib/api.js";
-import { SeverityBadge, DepartmentBadge } from "../components/Badges.jsx";
+import { SeverityBadge, DepartmentBadge, SEVERITY_COLOR } from "../components/Badges.jsx";
 import StatusSteps from "../components/StatusSteps.jsx";
 import EditReportModal from "../components/EditReportModal.jsx";
 import PhotoCarousel from "../components/PhotoCarousel.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { notify, statusLabel } from "../lib/notify.js";
 import { timeAgo } from "../lib/time.js";
+import { formatDistance, haversineMeters, ipGeolocate, MILE_M } from "../lib/geo.js";
+
+const NEARBY_RADIUS_M = 25 * MILE_M;
 
 export default function DashboardTab({ refreshKey, onChange, admin }) {
   const [reports, setReports] = useState(null);
   const [updating, setUpdating] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [coords, setCoords] = useState(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -21,6 +34,46 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
       .then((data) => setReports(data))
       .catch(() => setReports([]));
   }, [refreshKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fallbackToIp() {
+      const ip = await ipGeolocate();
+      if (!cancelled && ip) setCoords({ ...ip, approx: true });
+    }
+    if (!navigator.geolocation) {
+      fallbackToIp();
+      return () => {
+        cancelled = true;
+      };
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (cancelled) return;
+        setCoords({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          approx: false,
+        });
+      },
+      () => {
+        if (!cancelled) fallbackToIp();
+      },
+      { enableHighAccuracy: false, timeout: 6000, maximumAge: 60_000 },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const nearby = useMemo(() => {
+    if (!coords || !reports) return [];
+    return reports
+      .map((r) => ({ ...r, distance: haversineMeters(coords.lat, coords.lon, r.latitude, r.longitude) }))
+      .filter((r) => r.distance <= NEARBY_RADIUS_M)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 8);
+  }, [coords, reports]);
 
   async function cycleStatus(report) {
     setUpdating(report.id);
@@ -73,9 +126,34 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
   }
 
   return (
-    <div className="px-4 py-5 space-y-4">
+    <div className="px-4 py-5 space-y-5">
+      {coords && nearby.length > 0 && (
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+              <Compass size={14} className="text-teal-500" />
+              Nearby — within 25 mi
+              {coords.approx && (
+                <span className="normal-case text-[10px] font-medium text-zinc-500 tracking-normal">
+                  (approx. by IP)
+                </span>
+              )}
+            </h2>
+            <span className="text-xs text-zinc-500">{nearby.length}</span>
+          </div>
+          <div
+            className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 snap-x"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {nearby.map((r) => (
+              <NearbyCard key={r.id} report={r} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">My Reports</h1>
+        <h1 className="text-xl font-bold">Reports</h1>
         {reports && (
           <span className="rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 px-2.5 py-1 text-xs font-semibold">
             {reports.length}
@@ -137,6 +215,12 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
                   </div>
                 </div>
               </div>
+
+              {r.description && (
+                <p className="text-sm text-zinc-700 dark:text-zinc-200 leading-snug line-clamp-3">
+                  {r.description}
+                </p>
+              )}
 
               <StatusSteps status={r.status} />
 
@@ -209,6 +293,38 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
           onError={(msg) => toast.show(msg, "error")}
         />
       )}
+    </div>
+  );
+}
+
+function NearbyCard({ report }) {
+  const color = SEVERITY_COLOR[report.severity] || "#6b7280";
+  return (
+    <div className="snap-start shrink-0 w-60 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3">
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <span
+          className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-bold"
+          style={{ color }}
+        >
+          <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+          {report.severity || "unknown"}
+        </span>
+        <span className="text-[10px] text-zinc-500">
+          {formatDistance(report.distance)} away
+        </span>
+      </div>
+      <div className="font-semibold text-sm truncate">
+        {report.issueType || "Civic issue"}
+      </div>
+      {report.description && (
+        <p className="text-xs text-zinc-600 dark:text-zinc-300 mt-1 line-clamp-2">
+          {report.description}
+        </p>
+      )}
+      <div className="text-[11px] text-zinc-500 mt-1.5 flex items-center justify-between">
+        <span className="truncate mr-2">{report.department || ""}</span>
+        <span className="shrink-0">{timeAgo(report.createdAt)}</span>
+      </div>
     </div>
   );
 }

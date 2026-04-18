@@ -12,6 +12,11 @@ export default function ReportPopup({ report, photos }) {
           {report.department}
         </div>
       )}
+      {report.description && (
+        <p className="text-xs text-zinc-700 dark:text-zinc-200 mb-1.5 leading-snug line-clamp-3">
+          {report.description}
+        </p>
+      )}
       <div className="text-xs flex items-center gap-2 mb-1">
         <span
           className="inline-block h-2.5 w-2.5 rounded-full"

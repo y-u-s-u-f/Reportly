@@ -124,12 +124,12 @@ function AppShell() {
       </main>
 
       <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-t border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto max-w-2xl grid grid-cols-3">
+        <div className="mx-auto max-w-2xl relative grid grid-cols-2">
           <TabButton
-            active={tab === "submit"}
-            onClick={() => setTab("submit")}
-            icon={<FileEdit size={22} />}
-            label="Quick Submit"
+            active={tab === "dashboard"}
+            onClick={() => setTab("dashboard")}
+            icon={<BarChart2 size={22} />}
+            label="Dashboard"
           />
           <TabButton
             active={tab === "map"}
@@ -137,12 +137,18 @@ function AppShell() {
             icon={<MapIcon size={22} />}
             label="Map"
           />
-          <TabButton
-            active={tab === "dashboard"}
-            onClick={() => setTab("dashboard")}
-            icon={<BarChart2 size={22} />}
-            label="Dashboard"
-          />
+          <button
+            type="button"
+            onClick={() => setTab("submit")}
+            aria-label="Quick submit"
+            className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 h-16 w-16 rounded-full shadow-lg inline-flex items-center justify-center text-white transition ${
+              tab === "submit"
+                ? "bg-teal-600 ring-4 ring-teal-500/30"
+                : "bg-teal-500 hover:bg-teal-600"
+            }`}
+          >
+            <FileEdit size={26} />
+          </button>
         </div>
       </nav>
     </div>
