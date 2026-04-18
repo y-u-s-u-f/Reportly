@@ -91,10 +91,13 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
       }
 
       const submitterId = (userId || "").trim();
+      const existingUpvoters = Array.isArray(duplicate.upvoterIds)
+        ? duplicate.upvoterIds
+        : [];
       const alreadyCounted =
         submitterId &&
         (duplicate.userId === submitterId ||
-          (duplicate.upvoterIds || []).includes(submitterId));
+          existingUpvoters.includes(submitterId));
 
       const updateData = {
         photos: mergedPhotos,
@@ -102,7 +105,7 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
       };
       if (submitterId && !alreadyCounted) {
         updateData.affectedCount = { increment: 1 };
-        updateData.upvoterIds = { push: submitterId };
+        updateData.upvoterIds = { set: [...existingUpvoters, submitterId] };
       }
 
       const updated = await prisma.report.update({
@@ -151,14 +154,15 @@ router.post("/:id/upvote", async (req, res) => {
     if (report.userId && report.userId === userId) {
       return res.status(403).json({ error: "You can't upvote your own report" });
     }
-    if ((report.upvoterIds || []).includes(userId)) {
+    const existing = Array.isArray(report.upvoterIds) ? report.upvoterIds : [];
+    if (existing.includes(userId)) {
       return res.status(409).json({ error: "You already upvoted this" });
     }
     const updated = await prisma.report.update({
       where: { id: req.params.id },
       data: {
         affectedCount: { increment: 1 },
-        upvoterIds: { push: userId },
+        upvoterIds: { set: [...existing, userId] },
       },
     });
     res.json(updated);
