@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Moon, Sun, Camera, Map as MapIcon, BarChart2, WifiOff } from "lucide-react";
 import Logo from "./components/Logo.jsx";
 import AdminBar from "./components/AdminBar.jsx";
+import Onboarding, { hasOnboarded } from "./components/Onboarding.jsx";
 import { ToastProvider, useToast } from "./components/Toast.jsx";
 import QuickSubmitTab from "./tabs/QuickSubmitTab.jsx";
 import MapTab from "./tabs/MapTab.jsx";
@@ -35,6 +36,7 @@ function AppShell() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [admin, setAdmin] = useState(isAdmin());
   const [initialCapture, setInitialCapture] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
   const captureInputRef = useRef(null);
   const toast = useToast();
 
@@ -174,6 +176,8 @@ function AppShell() {
       >
         <Camera size={38} />
       </button>
+
+      {showOnboarding && <Onboarding onDone={() => setShowOnboarding(false)} />}
     </div>
   );
 }
