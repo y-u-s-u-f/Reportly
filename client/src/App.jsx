@@ -151,18 +151,6 @@ function AppShell() {
             icon={<MapIcon size={22} />}
             label="Map"
           />
-          <button
-            type="button"
-            onClick={handleQuickSubmit}
-            aria-label="Quick report — open camera"
-            className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[55%] h-24 w-24 rounded-full shadow-2xl inline-flex items-center justify-center text-white transition ${
-              tab === "submit"
-                ? "bg-teal-600 ring-4 ring-teal-500/30"
-                : "bg-teal-500 hover:bg-teal-600"
-            }`}
-          >
-            <Camera size={38} />
-          </button>
           <input
             ref={captureInputRef}
             type="file"
@@ -173,6 +161,19 @@ function AppShell() {
           />
         </div>
       </nav>
+
+      <button
+        type="button"
+        onClick={handleQuickSubmit}
+        aria-label="Quick report — open camera"
+        className={`fixed left-1/2 bottom-[20px] -translate-x-1/2 z-[1050] h-24 w-24 rounded-full shadow-2xl inline-flex items-center justify-center text-white transition ${
+          tab === "submit"
+            ? "bg-teal-600 ring-4 ring-teal-500/30"
+            : "bg-teal-500 hover:bg-teal-600"
+        }`}
+      >
+        <Camera size={38} />
+      </button>
     </div>
   );
 }
