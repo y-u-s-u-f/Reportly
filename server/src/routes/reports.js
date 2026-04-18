@@ -114,6 +114,67 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
 const STATUS_FLOW = ["received", "assigned", "in_progress", "resolved"];
 const SEVERITIES = ["low", "medium", "high"];
 
+router.post("/:id/upvote", async (req, res) => {
+  try {
+    const updated = await prisma.report.update({
+      where: { id: req.params.id },
+      data: { affectedCount: { increment: 1 } },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error("upvote error:", err);
+    res.status(500).json({ error: "Failed to upvote" });
+  }
+});
+
+router.post("/:id/photos", upload.array("photos", 3), async (req, res) => {
+  try {
+    const newPhotos = await Promise.all((req.files || []).map(persistPhoto));
+    if (newPhotos.length === 0) {
+      return res.status(400).json({ error: "No photos uploaded" });
+    }
+    const current = await prisma.report.findUnique({
+      where: { id: req.params.id },
+      select: { photos: true },
+    });
+    if (!current) return res.status(404).json({ error: "Report not found" });
+    const merged = Array.from(new Set([...(current.photos || []), ...newPhotos]));
+    const updated = await prisma.report.update({
+      where: { id: req.params.id },
+      data: { photos: merged },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error("add photos error:", err);
+    res.status(500).json({ error: "Failed to add photos" });
+  }
+});
+
+router.post("/:id/comments", async (req, res) => {
+  try {
+    const text = String(req.body?.text || "").trim();
+    if (!text) return res.status(400).json({ error: "text required" });
+    if (text.length > 500) {
+      return res.status(400).json({ error: "comment too long (max 500 chars)" });
+    }
+    const current = await prisma.report.findUnique({
+      where: { id: req.params.id },
+      select: { comments: true },
+    });
+    if (!current) return res.status(404).json({ error: "Report not found" });
+    const next = Array.isArray(current.comments) ? [...current.comments] : [];
+    next.push({ text, createdAt: new Date().toISOString() });
+    const updated = await prisma.report.update({
+      where: { id: req.params.id },
+      data: { comments: next },
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error("add comment error:", err);
+    res.status(500).json({ error: "Failed to add comment" });
+  }
+});
+
 router.patch("/:id/status", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;

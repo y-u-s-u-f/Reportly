@@ -105,7 +105,7 @@ function AppShell() {
         )}
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-2xl pb-24">
+      <main className="flex-1 mx-auto w-full max-w-2xl pb-28">
         {tab === "submit" && (
           <QuickSubmitTab
             online={online}
@@ -141,13 +141,13 @@ function AppShell() {
             type="button"
             onClick={() => setTab("submit")}
             aria-label="Quick submit"
-            className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 h-16 w-16 rounded-full shadow-lg inline-flex items-center justify-center text-white transition ${
+            className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 h-20 w-20 rounded-full shadow-xl inline-flex items-center justify-center text-white transition ${
               tab === "submit"
                 ? "bg-teal-600 ring-4 ring-teal-500/30"
                 : "bg-teal-500 hover:bg-teal-600"
             }`}
           >
-            <FileEdit size={26} />
+            <FileEdit size={32} />
           </button>
         </div>
       </nav>

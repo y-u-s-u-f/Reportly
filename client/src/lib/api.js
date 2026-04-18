@@ -105,6 +105,41 @@ export async function deleteReport(id) {
   return res.json();
 }
 
+export async function upvoteReport(id) {
+  const res = await fetch(`${BASE}/api/reports/${id}/upvote`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Upvote failed");
+  return res.json();
+}
+
+export async function addPhotosToReport(id, files) {
+  const fd = new FormData();
+  for (const f of files) fd.append("photos", f);
+  const res = await fetch(`${BASE}/api/reports/${id}/photos`, {
+    method: "POST",
+    body: fd,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Upload failed");
+  }
+  return res.json();
+}
+
+export async function addComment(id, text) {
+  const res = await fetch(`${BASE}/api/reports/${id}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Comment failed");
+  }
+  return res.json();
+}
+
 export async function reverseGeocode(lat, lon) {
   try {
     const res = await fetch(

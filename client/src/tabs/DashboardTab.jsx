@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Inbox,
   RefreshCw,
@@ -6,10 +6,23 @@ import {
   MapPin,
   Pencil,
   Trash2,
-  Lock,
   Compass,
+  ThumbsUp,
+  Camera,
+  MessageSquare,
+  Send,
+  Loader2,
+  X,
 } from "lucide-react";
-import { assetUrl, deleteReport, fetchReports, updateStatus } from "../lib/api.js";
+import {
+  addComment,
+  addPhotosToReport,
+  assetUrl,
+  deleteReport,
+  fetchReports,
+  updateStatus,
+  upvoteReport,
+} from "../lib/api.js";
 import { SeverityBadge, DepartmentBadge, SEVERITY_COLOR } from "../components/Badges.jsx";
 import StatusSteps from "../components/StatusSteps.jsx";
 import EditReportModal from "../components/EditReportModal.jsx";
@@ -26,6 +39,7 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
   const [updating, setUpdating] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [commenting, setCommenting] = useState(null);
   const [coords, setCoords] = useState(null);
   const toast = useToast();
 
@@ -121,6 +135,13 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
     notify(
       "Reportly",
       `Report on ${updated.issueType || "issue"} updated to ${statusLabel(updated.status)}`,
+    );
+    onChange?.();
+  }
+
+  function replaceReport(updated) {
+    setReports((prev) =>
+      prev ? prev.map((r) => (r.id === updated.id ? updated : r)) : prev,
     );
     onChange?.();
   }
@@ -235,51 +256,66 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
                 <span className="shrink-0 ml-2">{timeAgo(r.createdAt)}</span>
               </div>
 
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-300">
+              <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-300">
+                <span className="inline-flex items-center gap-1">
                   <Users size={12} />
                   {r.affectedCount} {r.affectedCount === 1 ? "person" : "people"} affected
                 </span>
-                {admin ? (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => cycleStatus(r)}
-                      disabled={updating === r.id}
-                      className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-teal-500 hover:bg-teal-600 disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5"
-                    >
-                      <RefreshCw
-                        size={12}
-                        className={updating === r.id ? "animate-spin" : ""}
-                      />
-                      Next status
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditing(r)}
-                      className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 text-xs font-semibold px-3 py-1.5"
-                      aria-label="Edit report"
-                    >
-                      <Pencil size={12} />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(r)}
-                      disabled={deleting === r.id}
-                      className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 text-xs font-semibold px-3 py-1.5 disabled:opacity-60"
-                      aria-label="Delete report"
-                    >
-                      <Trash2 size={12} />
-                      Delete
-                    </button>
-                  </div>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs text-zinc-400 dark:text-zinc-500">
-                    <Lock size={12} /> Admin sign-in to manage
+                {Array.isArray(r.comments) && r.comments.length > 0 && (
+                  <span className="inline-flex items-center gap-1">
+                    <MessageSquare size={12} />
+                    {r.comments.length}
                   </span>
                 )}
               </div>
+
+              {Array.isArray(r.comments) && r.comments.length > 0 && (
+                <CommentThread comments={r.comments} />
+              )}
+
+              <CommunityActions
+                report={r}
+                onUpdated={replaceReport}
+                onCommentClick={() => setCommenting(r)}
+                onError={(msg) => toast.show(msg, "error")}
+                onSuccess={(msg) => toast.show(msg, "success")}
+              />
+
+              {admin && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => cycleStatus(r)}
+                    disabled={updating === r.id}
+                    className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-teal-500 hover:bg-teal-600 disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5"
+                  >
+                    <RefreshCw
+                      size={12}
+                      className={updating === r.id ? "animate-spin" : ""}
+                    />
+                    Next status
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(r)}
+                    className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 text-xs font-semibold px-3 py-1.5"
+                    aria-label="Edit report"
+                  >
+                    <Pencil size={12} />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(r)}
+                    disabled={deleting === r.id}
+                    className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 text-xs font-semibold px-3 py-1.5 disabled:opacity-60"
+                    aria-label="Delete report"
+                  >
+                    <Trash2 size={12} />
+                    Delete
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -293,6 +329,181 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
           onError={(msg) => toast.show(msg, "error")}
         />
       )}
+
+      {commenting && (
+        <CommentModal
+          report={commenting}
+          onClose={() => setCommenting(null)}
+          onAdded={(updated) => {
+            replaceReport(updated);
+            setCommenting(null);
+            toast.show("Comment posted", "success");
+          }}
+          onError={(msg) => toast.show(msg, "error")}
+        />
+      )}
+    </div>
+  );
+}
+
+function CommunityActions({ report, onUpdated, onCommentClick, onError, onSuccess }) {
+  const [upvoting, setUpvoting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  async function handleUpvote() {
+    setUpvoting(true);
+    try {
+      const updated = await upvoteReport(report.id);
+      onUpdated?.(updated);
+      onSuccess?.("+1 affected");
+    } catch (err) {
+      onError?.(err.message || "Upvote failed");
+    } finally {
+      setUpvoting(false);
+    }
+  }
+
+  async function handleFiles(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    setUploading(true);
+    try {
+      const updated = await addPhotosToReport(report.id, files);
+      onUpdated?.(updated);
+      onSuccess?.(`Added ${files.length} photo${files.length === 1 ? "" : "s"}`);
+    } catch (err) {
+      onError?.(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <button
+        type="button"
+        onClick={handleUpvote}
+        disabled={upvoting}
+        className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-teal-50 dark:bg-teal-900/30 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-200 text-xs font-semibold px-3 py-1.5 disabled:opacity-60"
+      >
+        {upvoting ? (
+          <Loader2 size={12} className="animate-spin" />
+        ) : (
+          <ThumbsUp size={12} />
+        )}
+        Upvote
+      </button>
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 text-xs font-semibold px-3 py-1.5 disabled:opacity-60"
+      >
+        {uploading ? (
+          <Loader2 size={12} className="animate-spin" />
+        ) : (
+          <Camera size={12} />
+        )}
+        Add photo
+      </button>
+      <button
+        type="button"
+        onClick={onCommentClick}
+        className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 text-xs font-semibold px-3 py-1.5"
+      >
+        <MessageSquare size={12} />
+        Comment
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleFiles}
+      />
+    </div>
+  );
+}
+
+function CommentThread({ comments }) {
+  const sorted = [...comments].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+  );
+  return (
+    <ul className="space-y-1.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 p-3">
+      {sorted.map((c, i) => (
+        <li key={`${c.createdAt}-${i}`} className="text-xs">
+          <span className="text-zinc-800 dark:text-zinc-100">{c.text}</span>
+          <span className="ml-2 text-zinc-400">{timeAgo(c.createdAt)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CommentModal({ report, onClose, onAdded, onError }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const t = text.trim();
+    if (!t) return;
+    setBusy(true);
+    try {
+      const updated = await addComment(report.id, t);
+      onAdded?.(updated);
+    } catch (err) {
+      onError?.(err.message || "Comment failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1100] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-xl space-y-3"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg">Add a comment</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="h-9 w-9 inline-flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <p className="text-xs text-zinc-500">
+          On: {report.issueType || "Civic issue"}
+        </p>
+        <textarea
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Add context, updates, or thanks"
+          rows={3}
+          maxLength={500}
+          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-zinc-500">{text.length}/500</span>
+          <button
+            type="submit"
+            disabled={busy || !text.trim()}
+            className="min-h-[44px] rounded-full bg-teal-500 hover:bg-teal-600 disabled:opacity-60 text-white font-semibold inline-flex items-center justify-center gap-2 px-5"
+          >
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={14} />}
+            Post
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
