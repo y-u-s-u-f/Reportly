@@ -63,9 +63,17 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
       imageBase64 = fs.readFileSync(req.files[0].path).toString("base64");
     }
 
-    const photos = await Promise.all((req.files || []).map(persistPhoto));
-
     const classification = await classifyReport({ description, imageBase64 });
+
+    if (classification.needsMoreInfo) {
+      return res.status(422).json({
+        error:
+          "Not enough information to classify — please add a clearer photo, a description, or a voice note.",
+        needsMoreInfo: true,
+      });
+    }
+
+    const photos = await Promise.all((req.files || []).map(persistPhoto));
 
     const candidates = await prisma.report.findMany({
       where: { status: { not: "resolved" } },

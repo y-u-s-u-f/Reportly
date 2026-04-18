@@ -238,14 +238,22 @@ export default function QuickSubmitTab({
       toast.show("Report submitted!", "success");
       onSubmitted?.();
       resetForm({ keepResult: true });
-    } catch {
+    } catch (err) {
+      if (err?.needsMoreInfo) {
+        toast.show(
+          err.message ||
+            "Not enough info to classify — add a voice note or description",
+          "error",
+        );
+        return;
+      }
       try {
         await enqueueReport(payload);
         onQueueChange?.();
         toast.show("Network error — saved offline", "info");
         resetForm();
       } catch {
-        toast.show("Failed to submit report", "error");
+        toast.show(err?.message || "Failed to submit report", "error");
       }
     } finally {
       setSubmitting(false);

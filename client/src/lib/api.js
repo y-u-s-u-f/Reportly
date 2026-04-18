@@ -60,7 +60,13 @@ export async function submitReport({ description, latitude, longitude, address, 
   for (const p of photos || []) fd.append("photos", p);
 
   const res = await fetch(`${BASE}/api/reports`, { method: "POST", body: fd });
-  if (!res.ok) throw new Error("Failed to submit report");
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const err = new Error(data.error || "Failed to submit report");
+    err.status = res.status;
+    err.needsMoreInfo = !!data.needsMoreInfo;
+    throw err;
+  }
   return res.json();
 }
 
