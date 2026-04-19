@@ -152,25 +152,33 @@ export default function Onboarding({ onDone }) {
         </div>
 
         <div className="px-6 pb-6 pt-2 flex items-center gap-2">
-          {i > 0 ? (
-            <button
-              type="button"
-              onClick={back}
-              className="h-11 px-4 text-sm font-medium ink-muted hover:ink rounded-xl"
+          <AnimatePresence initial={false}>
+            {i > 0 && (
+              <motion.button
+                key="back"
+                type="button"
+                onClick={back}
+                initial={{ opacity: 0, width: 0, marginRight: -8 }}
+                animate={{ opacity: 1, width: "auto", marginRight: 0 }}
+                exit={{ opacity: 0, width: 0, marginRight: -8 }}
+                transition={spring}
+                className="h-11 text-sm font-medium ink-muted hover:ink rounded-xl overflow-hidden whitespace-nowrap"
+                style={{ paddingInline: 16 }}
+              >
+                Back
+              </motion.button>
+            )}
+          </AnimatePresence>
+          <motion.div layout transition={spring} className="flex-1">
+            <Button
+              size="lg"
+              fullWidth
+              onClick={isLast ? () => finish(true) : next}
+              iconTrailing={isLast ? <Check size={18} /> : <ArrowRight size={18} />}
             >
-              Back
-            </button>
-          ) : (
-            <div className="w-[72px]" aria-hidden />
-          )}
-          <Button
-            size="lg"
-            fullWidth
-            onClick={isLast ? () => finish(true) : next}
-            iconTrailing={isLast ? <Check size={18} /> : <ArrowRight size={18} />}
-          >
-            {isLast ? "File my first report" : "Next"}
-          </Button>
+              {isLast ? "File my first report" : "Next"}
+            </Button>
+          </motion.div>
         </div>
       </motion.div>
     </div>
