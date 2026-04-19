@@ -438,7 +438,7 @@ function StatBit({ label, value, icon }) {
 
 function StickyActions({ report, iAlreadyUpvoted, upvoting, onUpvote, onComment, onShare }) {
   return (
-    <div className="fixed bottom-[68px] inset-x-0 z-[900] pointer-events-none">
+    <div className="fixed bottom-[calc(68px+env(safe-area-inset-bottom))] inset-x-0 z-[1002] pointer-events-none">
       <div className="mx-auto max-w-2xl px-4 pb-2 pointer-events-auto">
         <div className="rounded-full surface-0 border line shadow-[var(--elev-3)] flex items-center gap-1 p-1.5">
           <motion.button

@@ -17,8 +17,11 @@ import {
   Sparkles,
   Image as ImageIcon,
   Pencil,
+  Mail,
+  ChevronRight,
 } from "lucide-react";
 import {
+  draftAuthorityEmail,
   forwardGeocode,
   reverseGeocode,
   submitReport,
@@ -193,7 +196,37 @@ export default function SubmitSheet() {
             transition={spring}
           >
             {result ? (
-              <SuccessPanel result={result} onClose={close} />
+              <SuccessPanel
+                result={result}
+                onClose={close}
+                onGoToReport={() => {
+                  if (!result.id) return close();
+                  setOpen(false);
+                  setTimeout(() => {
+                    navigate(`/r/${result.id}`, { replace: true });
+                  }, 260);
+                }}
+                onNotifyAuthorities={async () => {
+                  if (!result.id) return;
+                  try {
+                    const { to, subject, body } = await draftAuthorityEmail(result.id);
+                    if (!to) {
+                      pushToast("No authority email on file", "error");
+                      return;
+                    }
+                    const href =
+                      "mailto:" +
+                      encodeURIComponent(to) +
+                      "?subject=" +
+                      encodeURIComponent(subject || "") +
+                      "&body=" +
+                      encodeURIComponent(body || "");
+                    window.location.href = href;
+                  } catch (e) {
+                    pushToast(e.message || "Email failed", "error");
+                  }
+                }}
+              />
             ) : step === 1 ? (
               <StepCapture
                 photos={photos}
@@ -666,7 +699,16 @@ function Section({ title, children }) {
   );
 }
 
-function SuccessPanel({ result, onClose }) {
+function SuccessPanel({ result, onClose, onGoToReport, onNotifyAuthorities }) {
+  const [notifying, setNotifying] = useState(false);
+  async function handleNotify() {
+    setNotifying(true);
+    try {
+      await onNotifyAuthorities?.();
+    } finally {
+      setNotifying(false);
+    }
+  }
   return (
     <SheetBody className="text-center py-8">
       <motion.div
@@ -704,17 +746,35 @@ function SuccessPanel({ result, onClose }) {
       )}
 
       <div className="mt-6 flex flex-col gap-2 max-w-xs mx-auto">
-        {result.id && (
+        {!result.queued && result.id && (
           <Button
-            as="a"
-            href={`/r/${result.id}`}
             size="lg"
             fullWidth
+            onClick={handleNotify}
+            disabled={notifying}
+            icon={
+              notifying ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Mail size={18} />
+              )
+            }
           >
-            View report
+            Notify authorities
           </Button>
         )}
-        <Button variant="secondary" size="md" fullWidth onClick={onClose}>
+        {result.id && (
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={onGoToReport}
+            iconTrailing={<ChevronRight size={18} />}
+          >
+            Go to problem
+          </Button>
+        )}
+        <Button variant="ghost" size="md" fullWidth onClick={onClose}>
           Done
         </Button>
       </div>
