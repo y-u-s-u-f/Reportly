@@ -103,11 +103,11 @@ export async function updateReport(id, fields) {
   return res.json();
 }
 
-export async function postStatusUpdate(id, text) {
+export async function postStatusUpdate(id, text, { resolve = false } = {}) {
   const res = await fetch(`${BASE}/api/reports/${id}/status-updates`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, resolve: resolve === true }),
   });
   handleAuthResponse(res);
   if (!res.ok) {

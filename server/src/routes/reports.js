@@ -320,9 +320,13 @@ router.post("/:id/status-updates", requireAdmin, async (req, res) => {
       ? [...current.statusUpdates]
       : [];
     next.push({ text, createdAt: new Date().toISOString() });
+
+    const data = { statusUpdates: next };
+    if (req.body?.resolve === true) data.status = "resolved";
+
     const updated = await prisma.report.update({
       where: { id: req.params.id },
-      data: { statusUpdates: next },
+      data,
     });
     res.json(updated);
   } catch (err) {

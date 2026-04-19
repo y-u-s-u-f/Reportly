@@ -14,7 +14,7 @@ import {
   X,
   Mail,
   Megaphone,
-  Activity,
+  CheckCircle2,
 } from "lucide-react";
 import {
   addComment,
@@ -361,9 +361,12 @@ function StatusUpdatesThread({ updates }) {
   );
   return (
     <div className="rounded-xl border border-teal-200 dark:border-teal-900/60 bg-teal-50/50 dark:bg-teal-900/20 p-3">
-      <div className="flex items-center gap-1.5 mb-2 text-[10px] uppercase tracking-wider font-bold text-teal-700 dark:text-teal-200">
-        <Activity size={12} />
-        Status updates
+      <div className="flex items-center gap-2 mb-2 text-[10px] uppercase tracking-wider font-bold text-teal-700 dark:text-teal-200">
+        <span
+          aria-hidden="true"
+          className="inline-block h-2 w-2 rounded-full bg-red-600 recording-pulse"
+        />
+        Live updates
       </div>
       <ol className="space-y-2">
         {sorted.map((u, i) => (
@@ -390,6 +393,7 @@ function StatusUpdatesThread({ updates }) {
 
 function StatusUpdateModal({ report, onClose, onPosted, onError }) {
   const [text, setText] = useState("");
+  const [resolve, setResolve] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function handleSubmit(e) {
@@ -398,7 +402,7 @@ function StatusUpdateModal({ report, onClose, onPosted, onError }) {
     if (!t) return;
     setBusy(true);
     try {
-      const updated = await postStatusUpdate(report.id, t);
+      const updated = await postStatusUpdate(report.id, t, { resolve });
       onPosted?.(updated);
     } catch (err) {
       onError?.(err.message || "Failed to post update");
@@ -439,6 +443,23 @@ function StatusUpdateModal({ report, onClose, onPosted, onError }) {
           maxLength={500}
           className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
         />
+        <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800">
+          <input
+            type="checkbox"
+            checked={resolve}
+            onChange={(e) => setResolve(e.target.checked)}
+            className="h-5 w-5 mt-0.5 rounded accent-teal-500 shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold flex items-center gap-1.5">
+              <CheckCircle2 size={14} className="text-teal-500" />
+              Mark as complete
+            </div>
+            <div className="text-xs text-zinc-500 mt-0.5">
+              Resolves this report and removes the pin from the map.
+            </div>
+          </div>
+        </label>
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-zinc-500">{text.length}/500</span>
           <button
