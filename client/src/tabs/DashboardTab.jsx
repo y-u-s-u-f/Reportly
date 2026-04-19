@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Share2,
   Filter,
+  Search,
 } from "lucide-react";
 import {
   addComment,
@@ -60,10 +61,10 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
   const [coords, setCoords] = useState(null);
   const [filters, setFilters] = useState({
     severity: "all",
-    status: "open",
     department: "all",
     search: "",
   });
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -117,13 +118,6 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
     const q = filters.search.trim().toLowerCase();
     return reports.filter((r) => {
       if (filters.severity !== "all" && r.severity !== filters.severity) return false;
-      if (filters.status === "open" && r.status === "resolved") return false;
-      if (
-        filters.status !== "all" &&
-        filters.status !== "open" &&
-        r.status !== filters.status
-      )
-        return false;
       if (filters.department !== "all" && r.department !== filters.department)
         return false;
       if (q) {
@@ -145,7 +139,6 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
 
   const activeFilterCount =
     (filters.severity !== "all" ? 1 : 0) +
-    (filters.status !== "open" ? 1 : 0) +
     (filters.department !== "all" ? 1 : 0) +
     (filters.search.trim() ? 1 : 0);
 
@@ -213,23 +206,46 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
         </section>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold">Reports</h1>
-        {filtered && (
-          <span className="rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 px-2.5 py-1 text-xs font-semibold">
-            {filtered.length}
-            {reports && filtered.length !== reports.length
-              ? ` / ${reports.length}`
-              : ""}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {filtered && (
+            <span className="rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 px-2.5 py-1 text-xs font-semibold">
+              {filtered.length}
+              {reports && filtered.length !== reports.length
+                ? ` / ${reports.length}`
+                : ""}
+            </span>
+          )}
+          {reports && reports.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((o) => !o)}
+              aria-label="Search and filter"
+              aria-expanded={filtersOpen}
+              className={`relative h-10 w-10 inline-flex items-center justify-center rounded-full transition ${
+                filtersOpen
+                  ? "bg-teal-500 text-white"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              }`}
+            >
+              <Search size={16} />
+              {activeFilterCount > 0 && !filtersOpen && (
+                <span className="absolute -top-1 -right-1 h-4 min-w-[16px] rounded-full bg-teal-500 text-white text-[10px] font-bold inline-flex items-center justify-center px-1">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
-      {reports && reports.length > 0 && (
+      {filtersOpen && reports && reports.length > 0 && (
         <FilterBar
           filters={filters}
           setFilters={setFilters}
           activeCount={activeFilterCount}
+          onClose={() => setFiltersOpen(false)}
         />
       )}
 
@@ -267,7 +283,6 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
             onClick={() =>
               setFilters({
                 severity: "all",
-                status: "open",
                 department: "all",
                 search: "",
               })
@@ -759,11 +774,10 @@ function CommentModal({ report, onClose, onAdded, onError }) {
   );
 }
 
-function FilterBar({ filters, setFilters, activeCount }) {
+function FilterBar({ filters, setFilters, activeCount, onClose }) {
   const chipBase =
     "min-h-[32px] inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold transition";
-  const active =
-    "bg-teal-500 text-white";
+  const active = "bg-teal-500 text-white";
   const inactive =
     "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700";
 
@@ -771,7 +785,7 @@ function FilterBar({ filters, setFilters, activeCount }) {
     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 space-y-3">
       <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500">
         <Filter size={12} />
-        Filter
+        Search & filter
         {activeCount > 0 && (
           <span className="inline-flex items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-200 h-4 min-w-[16px] px-1">
             {activeCount}
@@ -783,7 +797,6 @@ function FilterBar({ filters, setFilters, activeCount }) {
             onClick={() =>
               setFilters({
                 severity: "all",
-                status: "open",
                 department: "all",
                 search: "",
               })
@@ -793,10 +806,19 @@ function FilterBar({ filters, setFilters, activeCount }) {
             Reset
           </button>
         )}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close filters"
+          className={`${activeCount > 0 ? "" : "ml-auto"} h-7 w-7 inline-flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500`}
+        >
+          <X size={14} />
+        </button>
       </div>
 
       <input
         type="search"
+        autoFocus
         value={filters.search}
         onChange={(e) => setFilters({ ...filters, search: e.target.value })}
         placeholder="Search issue type, description, address…"
@@ -816,31 +838,6 @@ function FilterBar({ filters, setFilters, activeCount }) {
               className={`${chipBase} ${filters.severity === s ? active : inactive} capitalize`}
             >
               {s}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1.5">
-          Status
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            ["open", "Open"],
-            ["received", "Received"],
-            ["assigned", "Assigned"],
-            ["in_progress", "In Progress"],
-            ["resolved", "Resolved"],
-            ["all", "All"],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setFilters({ ...filters, status: value })}
-              className={`${chipBase} ${filters.status === value ? active : inactive}`}
-            >
-              {label}
             </button>
           ))}
         </div>
