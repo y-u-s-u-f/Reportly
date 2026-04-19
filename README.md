@@ -1,6 +1,6 @@
 # Reportly
 
-Reportly is a civic issue reporting app. Snap a photo of a pothole, overflowing trash can, or broken street light, and it gets categorized, routed to the right city department, and put on a map so neighbors can see it too. The design is built mobile-first because you're usually standing in front of the problem when you report it.
+Reportly is a civic issue reporting app (Built by team Invincible for the OCSEF Hackathon). Snap a photo of a pothole, overflowing trash can, or broken street light, and it gets categorized, routed to the right city department, and put on a map so neighbors can see it too. The design is built mobile-first because you're usually standing in front of the problem when you report it.
 
 It's aligned with UN SDG 11 (Sustainable Cities and Communities) and really tries to make the gap between "I noticed something" and "someone's going to fix it" a lot smaller.
 
