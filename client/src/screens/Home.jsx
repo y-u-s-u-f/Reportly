@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router";
-import { MapPin, Search, Sparkles, X } from "lucide-react";
+import { Search, Sparkles, X } from "lucide-react";
 import { fetchReports } from "../lib/api.js";
 import { haversineMeters, MILE_M, ipGeolocate } from "../lib/geo.js";
 import { useAppStore } from "../store/index.js";
 import ReportCard from "../components/ui/ReportCard.jsx";
 import { Chip, FilterChipRow } from "../components/ui/Chip.jsx";
-import StatTile from "../components/ui/StatTile.jsx";
 import { SkeletonList } from "../components/ui/Skeleton.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Button from "../components/ui/Button.jsx";
@@ -84,13 +83,9 @@ export default function Home() {
 
   const buckets = useMemo(() => groupByDistance(filtered), [filtered]);
 
-  const stats = useMemo(() => computeStats(reports, coords), [reports, coords]);
-
   return (
     <motion.div {...pageMotion} className="px-4 pt-4">
-      <HeroStats stats={stats} />
-
-      <div className="mt-5 flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-[28px] leading-tight ink">
           {coords ? "In your area" : "Latest reports"}
         </h2>
@@ -173,25 +168,6 @@ export default function Home() {
   );
 }
 
-function HeroStats({ stats }) {
-  return (
-    <div className="flex gap-3">
-      <StatTile
-        label="Near you"
-        value={stats.near}
-        hint={stats.near ? "within 1 mile" : "no reports close by"}
-        icon={<MapPin size={16} />}
-      />
-      <StatTile
-        label="New this week"
-        value={stats.newWeek}
-        hint={stats.newWeek ? "filed by neighbors" : "nothing new yet"}
-        accent
-      />
-    </div>
-  );
-}
-
 function FeedSections({ buckets, viewMode }) {
   return (
     <div className="flex flex-col gap-6">
@@ -238,25 +214,6 @@ function groupByDistance(list) {
   return near.length > 0
     ? { near, city, far }
     : { near: [], city: [], far: [...near, ...city, ...far] };
-}
-
-function computeStats(reports, coords) {
-  if (!reports) return { near: "—", newWeek: "—" };
-  const oneMi = MILE_M;
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  let near = 0, newWeek = 0;
-  for (const r of reports) {
-    if (
-      coords &&
-      haversineMeters(coords.lat, coords.lon, r.latitude, r.longitude) <= oneMi
-    ) {
-      near++;
-    }
-    if (new Date(r.createdAt).getTime() >= weekAgo) {
-      newWeek++;
-    }
-  }
-  return { near, newWeek };
 }
 
 function shortDept(d) {
