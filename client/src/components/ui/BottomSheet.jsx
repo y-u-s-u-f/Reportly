@@ -28,23 +28,6 @@ export default function BottomSheet({
     };
   }, [open, onClose]);
 
-  useEffect(() => {
-    if (!open || !window.visualViewport) return;
-    const vv = window.visualViewport;
-    const update = () => {
-      if (!ref.current) return;
-      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      ref.current.style.bottom = inset > 0 ? `${inset}px` : "";
-    };
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-      if (ref.current) ref.current.style.bottom = "";
-    };
-  }, [open]);
-
   const height =
     size === "full"
       ? "h-[100dvh]"
@@ -82,7 +65,6 @@ export default function BottomSheet({
             onDragEnd={(_, info) => {
               if (info.offset.y > 140 || info.velocity.y > 700) onClose?.();
             }}
-            style={{ transition: "bottom 0.25s cubic-bezier(0.32, 0.72, 0, 1)" }}
             className={`absolute left-0 right-0 bottom-0 flex flex-col bg-[color:var(--color-surface-0)] rounded-t-[32px] shadow-[var(--elev-4)] ${height} overflow-hidden`}
           >
             {showHandle && (

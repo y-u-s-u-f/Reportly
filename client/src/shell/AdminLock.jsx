@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Lock, LogOut, ShieldCheck, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Lock, LogOut, ShieldCheck, Loader2, X } from "lucide-react";
 import { adminLogin, adminLogout } from "../lib/api.js";
 import { useAppStore } from "../store/index.js";
-import BottomSheet, { SheetBody, SheetFooter } from "../components/ui/BottomSheet.jsx";
 import Button, { IconButton } from "../components/ui/Button.jsx";
+import { fadeMotion, spring } from "../design/motion.js";
 
 export default function AdminLock() {
   const admin = useAppStore((s) => s.admin);
@@ -50,31 +51,89 @@ export default function AdminLock() {
         aria-label="Sign in as admin"
         onClick={() => setOpen(true)}
       />
-      <BottomSheet
+      <AdminSignInModal
         open={open}
         onClose={() => setOpen(false)}
-        title="Admin sign in"
-        subtitle="Admins can edit reports and post live updates that residents see."
-        size="sm"
-      >
-        <form onSubmit={handleLogin}>
-          <SheetBody>
-            <div className="mb-4 flex items-center gap-2 text-[color:var(--color-primary-600)] text-sm">
+        password={password}
+        setPassword={setPassword}
+        busy={busy}
+        onSubmit={handleLogin}
+      />
+    </>
+  );
+}
+
+function AdminSignInModal({ open, onClose, password, setPassword, busy, onSubmit }) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => e.key === "Escape" && onClose?.();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div
+          className="fixed inset-0 z-[2000] overflow-y-auto flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Admin sign in"
+        >
+          <motion.button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            {...fadeMotion}
+            className="fixed inset-0 bg-black/45 backdrop-blur-[2px]"
+          />
+          <motion.form
+            onSubmit={onSubmit}
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.98 }}
+            transition={spring}
+            className="relative w-full max-w-sm my-auto rounded-3xl bg-[color:var(--color-surface-0)] shadow-[var(--elev-4)] border line p-5 space-y-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-[17px] font-semibold ink leading-tight">
+                  Admin sign in
+                </h2>
+                <p className="text-[13px] ink-muted mt-0.5">
+                  Admins can edit reports and post live updates.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="h-9 w-9 -mr-1 -mt-1 inline-flex items-center justify-center rounded-full hover:bg-[color:var(--color-surface-2)]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2 text-[color:var(--color-primary-600)] text-sm">
               <ShieldCheck size={16} /> Restricted to city staff.
             </div>
-            <label className="block text-[12px] font-medium ink-muted mb-1.5">
-              Password
-            </label>
-            <input
-              type="password"
-              autoFocus
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin password"
-              className="w-full rounded-xl border line bg-[color:var(--color-surface-1)] px-4 h-12 text-[15px] focus:outline-none focus:border-[color:var(--color-primary-500)]"
-            />
-          </SheetBody>
-          <SheetFooter>
+            <div>
+              <label className="block text-[12px] font-medium ink-muted mb-1.5">
+                Password
+              </label>
+              <input
+                type="password"
+                autoFocus
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter admin password"
+                className="w-full rounded-xl border line bg-[color:var(--color-surface-1)] px-4 h-12 text-[15px] focus:outline-none focus:border-[color:var(--color-primary-500)]"
+              />
+            </div>
             <Button
               type="submit"
               size="lg"
@@ -84,9 +143,9 @@ export default function AdminLock() {
             >
               Sign in
             </Button>
-          </SheetFooter>
-        </form>
-      </BottomSheet>
-    </>
+          </motion.form>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }
