@@ -15,6 +15,8 @@ import {
   Mail,
   Megaphone,
   CheckCircle2,
+  Share2,
+  Filter,
 } from "lucide-react";
 import {
   addComment,
@@ -35,8 +37,19 @@ import { notify, statusLabel } from "../lib/notify.js";
 import { timeAgo } from "../lib/time.js";
 import { formatDistance, haversineMeters, ipGeolocate, MILE_M } from "../lib/geo.js";
 import { getDeviceId } from "../lib/device.js";
+import { shareReport } from "../lib/share.js";
 
 const NEARBY_RADIUS_M = 25 * MILE_M;
+
+const ALL_DEPARTMENTS = [
+  "Roads & Transport",
+  "Sanitation",
+  "Parks & Recreation",
+  "Utilities",
+  "Public Safety",
+  "Water & Drainage",
+  "General Services",
+];
 
 export default function DashboardTab({ refreshKey, onChange, admin }) {
   const [reports, setReports] = useState(null);
@@ -45,6 +58,12 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
   const [commenting, setCommenting] = useState(null);
   const [postingUpdate, setPostingUpdate] = useState(null);
   const [coords, setCoords] = useState(null);
+  const [filters, setFilters] = useState({
+    severity: "all",
+    status: "open",
+    department: "all",
+    search: "",
+  });
   const toast = useToast();
 
   useEffect(() => {
@@ -92,6 +111,43 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 8);
   }, [coords, reports]);
+
+  const filtered = useMemo(() => {
+    if (!reports) return null;
+    const q = filters.search.trim().toLowerCase();
+    return reports.filter((r) => {
+      if (filters.severity !== "all" && r.severity !== filters.severity) return false;
+      if (filters.status === "open" && r.status === "resolved") return false;
+      if (
+        filters.status !== "all" &&
+        filters.status !== "open" &&
+        r.status !== filters.status
+      )
+        return false;
+      if (filters.department !== "all" && r.department !== filters.department)
+        return false;
+      if (q) {
+        const hay = [
+          r.issueType,
+          r.description,
+          r.summary,
+          r.address,
+          r.department,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [reports, filters]);
+
+  const activeFilterCount =
+    (filters.severity !== "all" ? 1 : 0) +
+    (filters.status !== "open" ? 1 : 0) +
+    (filters.department !== "all" ? 1 : 0) +
+    (filters.search.trim() ? 1 : 0);
 
   async function handleDelete(report) {
     if (!confirm(`Delete this ${report.issueType || "report"}? This cannot be undone.`)) {
@@ -159,12 +215,23 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Reports</h1>
-        {reports && (
+        {filtered && (
           <span className="rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 px-2.5 py-1 text-xs font-semibold">
-            {reports.length}
+            {filtered.length}
+            {reports && filtered.length !== reports.length
+              ? ` / ${reports.length}`
+              : ""}
           </span>
         )}
       </div>
+
+      {reports && reports.length > 0 && (
+        <FilterBar
+          filters={filters}
+          setFilters={setFilters}
+          activeCount={activeFilterCount}
+        />
+      )}
 
       {reports === null && (
         <div className="space-y-3">
@@ -189,9 +256,32 @@ export default function DashboardTab({ refreshKey, onChange, admin }) {
         </div>
       )}
 
-      {reports && reports.length > 0 && (
+      {reports && reports.length > 0 && filtered && filtered.length === 0 && (
+        <div className="text-center py-12 px-6 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700">
+          <Filter size={24} className="mx-auto mb-2 text-zinc-400" />
+          <p className="text-sm text-zinc-600 dark:text-zinc-300 font-medium">
+            No reports match your filters.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              setFilters({
+                severity: "all",
+                status: "open",
+                department: "all",
+                search: "",
+              })
+            }
+            className="mt-2 text-sm font-semibold text-teal-600 dark:text-teal-300 hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
+
+      {filtered && filtered.length > 0 && (
         <ul className="space-y-3">
-          {reports.map((r) => (
+          {filtered.map((r) => (
             <li
               key={r.id}
               className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3"
@@ -565,6 +655,18 @@ function CommunityActions({ report, onUpdated, onCommentClick, onError, onSucces
         <MessageSquare size={12} />
         Comment
       </button>
+      <button
+        type="button"
+        onClick={async () => {
+          const res = await shareReport(report);
+          if (res.copied) onSuccess?.("Link copied");
+          else if (res.url) onSuccess?.(res.url);
+        }}
+        className="min-h-[36px] inline-flex items-center gap-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 text-xs font-semibold px-3 py-1.5"
+      >
+        <Share2 size={12} />
+        Share
+      </button>
       <input
         ref={fileRef}
         type="file"
@@ -653,6 +755,114 @@ function CommentModal({ report, onClose, onAdded, onError }) {
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function FilterBar({ filters, setFilters, activeCount }) {
+  const chipBase =
+    "min-h-[32px] inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold transition";
+  const active =
+    "bg-teal-500 text-white";
+  const inactive =
+    "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700";
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 space-y-3">
+      <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500">
+        <Filter size={12} />
+        Filter
+        {activeCount > 0 && (
+          <span className="inline-flex items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-200 h-4 min-w-[16px] px-1">
+            {activeCount}
+          </span>
+        )}
+        {activeCount > 0 && (
+          <button
+            type="button"
+            onClick={() =>
+              setFilters({
+                severity: "all",
+                status: "open",
+                department: "all",
+                search: "",
+              })
+            }
+            className="ml-auto text-teal-600 dark:text-teal-300 hover:underline"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      <input
+        type="search"
+        value={filters.search}
+        onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+        placeholder="Search issue type, description, address…"
+        className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+      />
+
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1.5">
+          Severity
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["all", "low", "medium", "high"].map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setFilters({ ...filters, severity: s })}
+              className={`${chipBase} ${filters.severity === s ? active : inactive} capitalize`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1.5">
+          Status
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            ["open", "Open"],
+            ["received", "Received"],
+            ["assigned", "Assigned"],
+            ["in_progress", "In Progress"],
+            ["resolved", "Resolved"],
+            ["all", "All"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setFilters({ ...filters, status: value })}
+              className={`${chipBase} ${filters.status === value ? active : inactive}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 mb-1.5">
+          Department
+        </div>
+        <select
+          value={filters.department}
+          onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+          className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+        >
+          <option value="all">All departments</option>
+          {ALL_DEPARTMENTS.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

@@ -50,6 +50,15 @@ export async function fetchReports() {
   return res.json();
 }
 
+export async function fetchReport(id) {
+  const res = await fetch(`${BASE}/api/reports/${id}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to load report");
+  }
+  return res.json();
+}
+
 export async function submitReport({ description, latitude, longitude, address, photos }) {
   const fd = new FormData();
   fd.append("description", description || "");

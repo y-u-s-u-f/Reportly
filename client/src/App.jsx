@@ -3,6 +3,7 @@ import { Moon, Sun, Camera, Map as MapIcon, BarChart2, WifiOff } from "lucide-re
 import Logo from "./components/Logo.jsx";
 import AdminBar from "./components/AdminBar.jsx";
 import Onboarding, { hasOnboarded } from "./components/Onboarding.jsx";
+import ReportView from "./components/ReportView.jsx";
 import { ToastProvider, useToast } from "./components/Toast.jsx";
 import QuickSubmitTab from "./tabs/QuickSubmitTab.jsx";
 import MapTab from "./tabs/MapTab.jsx";
@@ -199,7 +200,28 @@ function TabButton({ active, onClick, icon, label }) {
   );
 }
 
+function useRoute() {
+  const initial =
+    typeof window !== "undefined" ? window.location.pathname : "/";
+  const [path, setPath] = useState(initial);
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  return path;
+}
+
 export default function App() {
+  const path = useRoute();
+  const reportMatch = path.match(/^\/r\/([^/]+)\/?$/);
+  if (reportMatch) {
+    return (
+      <ToastProvider>
+        <ReportView id={reportMatch[1]} />
+      </ToastProvider>
+    );
+  }
   return (
     <ToastProvider>
       <AppShell />

@@ -50,6 +50,19 @@ router.get("/nearby", async (req, res) => {
   res.json(nearby);
 });
 
+router.get("/:id", async (req, res) => {
+  try {
+    const report = await prisma.report.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!report) return res.status(404).json({ error: "Report not found" });
+    res.json(report);
+  } catch (err) {
+    console.error("get report error:", err);
+    res.status(500).json({ error: "Failed to load report" });
+  }
+});
+
 router.post("/", upload.array("photos", 3), async (req, res) => {
   try {
     const { description = "", latitude, longitude, address, userId } = req.body;
