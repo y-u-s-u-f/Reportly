@@ -16,13 +16,3 @@ export function notify(title, body) {
   }
 }
 
-export function statusLabel(status) {
-  return (
-    {
-      received: "Received",
-      assigned: "Assigned",
-      in_progress: "In Progress",
-      resolved: "Resolved",
-    }[status] || status
-  );
-}

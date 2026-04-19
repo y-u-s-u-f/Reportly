@@ -3,9 +3,9 @@ import L from "leaflet";
 
 const pinIcon = L.divIcon({
   className: "",
-  html: `<div style="width:18px;height:18px;border-radius:50%;background:#01696f;border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
+  html: `<div style="width:20px;height:20px;border-radius:50%;background:#4f46e5;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.35)"></div>`,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
 });
 
 export default function MiniMap({ lat, lon, interactive = false, onChange }) {
@@ -77,7 +77,7 @@ export default function MiniMap({ lat, lon, interactive = false, onChange }) {
   return (
     <div
       ref={ref}
-      className={`w-full rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 ${
+      className={`w-full rounded-2xl overflow-hidden border line ${
         interactive ? "h-56" : "h-32"
       }`}
     />

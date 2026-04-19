@@ -90,17 +90,6 @@ export async function transcribeAudio(blob, filename = "voice.webm") {
   return res.json();
 }
 
-export async function updateStatus(id, status) {
-  const res = await fetch(`${BASE}/api/reports/${id}/status`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify(status ? { status } : {}),
-  });
-  handleAuthResponse(res);
-  if (!res.ok) throw new Error("Status update failed");
-  return res.json();
-}
-
 export async function updateReport(id, fields) {
   const res = await fetch(`${BASE}/api/reports/${id}`, {
     method: "PATCH",
@@ -112,11 +101,13 @@ export async function updateReport(id, fields) {
   return res.json();
 }
 
-export async function postStatusUpdate(id, text, { resolve = false } = {}) {
+export async function postStatusUpdate(id, text, { resolve } = {}) {
+  const body = { text };
+  if (resolve === true || resolve === false) body.resolve = resolve;
   const res = await fetch(`${BASE}/api/reports/${id}/status-updates`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ text, resolve: resolve === true }),
+    body: JSON.stringify(body),
   });
   handleAuthResponse(res);
   if (!res.ok) {

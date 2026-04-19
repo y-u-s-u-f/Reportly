@@ -1,0 +1,160 @@
+@theme {
+  /* Primary — indigo (civic trust) */
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+  --color-primary-950: #1e1b4b;
+
+  /* Accent — lime (optimism / impact) */
+  --color-accent-300: #bef264;
+  --color-accent-400: #a3e635;
+  --color-accent-500: #84cc16;
+  --color-accent-600: #65a30d;
+
+  /* Severity — colorblind-aware, paired with shapes in Badge */
+  --color-sev-low: #059669;
+  --color-sev-low-soft: #d1fae5;
+  --color-sev-med: #f59e0b;
+  --color-sev-med-soft: #fef3c7;
+  --color-sev-high: #e11d48;
+  --color-sev-high-soft: #ffe4e6;
+
+  /* Surfaces (light) */
+  --color-surface-0: #ffffff;
+  --color-surface-1: #fafafb;
+  --color-surface-2: #f4f4f7;
+  --color-surface-3: #ececf1;
+
+  /* Ink (light) */
+  --color-ink: #0b0b12;
+  --color-ink-muted: #4b4b5a;
+  --color-ink-subtle: #8a8a99;
+
+  /* Borders */
+  --color-line: #e7e7ee;
+  --color-line-strong: #d5d5de;
+
+  /* Typography — SF (Apple system) only */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro",
+    system-ui, sans-serif;
+  --font-display:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro",
+    system-ui, sans-serif;
+
+  /* Radii */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+}
+
+/* Dark theme ("dusk") — distinct palette, not inverted */
+.dark {
+  --color-primary-50: #1e1b4b;
+  --color-primary-100: #312e81;
+  --color-primary-200: #3730a3;
+  --color-primary-300: #4338ca;
+  --color-primary-400: #6366f1;
+  --color-primary-500: #818cf8;
+  --color-primary-600: #a5b4fc;
+  --color-primary-700: #c7d2fe;
+  --color-primary-800: #e0e7ff;
+  --color-primary-900: #eef2ff;
+
+  --color-accent-300: #d9f99d;
+  --color-accent-400: #bef264;
+  --color-accent-500: #a3e635;
+
+  --color-sev-low: #34d399;
+  --color-sev-low-soft: #064e3b;
+  --color-sev-med: #fbbf24;
+  --color-sev-med-soft: #451a03;
+  --color-sev-high: #fb7185;
+  --color-sev-high-soft: #4c0519;
+
+  --color-surface-0: #0a0a10;
+  --color-surface-1: #111118;
+  --color-surface-2: #17171f;
+  --color-surface-3: #1f1f2a;
+
+  --color-ink: #f5f5fa;
+  --color-ink-muted: #b3b3c2;
+  --color-ink-subtle: #797989;
+
+  --color-line: #242433;
+  --color-line-strong: #33334a;
+}
+
+/* Elevation — layered shadows, indigo-tinted in light mode */
+:root {
+  --elev-1: 0 1px 2px rgba(17, 16, 68, 0.04),
+    0 1px 1px rgba(17, 16, 68, 0.03);
+  --elev-2: 0 4px 12px rgba(17, 16, 68, 0.06),
+    0 1px 3px rgba(17, 16, 68, 0.04);
+  --elev-3: 0 12px 32px rgba(17, 16, 68, 0.10),
+    0 4px 8px rgba(17, 16, 68, 0.06);
+  --elev-4: 0 24px 60px rgba(17, 16, 68, 0.18),
+    0 8px 16px rgba(17, 16, 68, 0.10);
+}
+
+.dark {
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 1px rgba(0, 0, 0, 0.4);
+  --elev-2: 0 4px 12px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --elev-3: 0 12px 32px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+  --elev-4: 0 24px 60px rgba(0, 0, 0, 0.7), 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Focus ring — consistent across interactive elements */
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  box-shadow:
+    0 0 0 3px var(--color-surface-0),
+    0 0 0 5px var(--color-primary-500);
+  border-radius: inherit;
+}
+
+/* Utility classes keyed off tokens */
+.surface-0 { background-color: var(--color-surface-0); }
+.surface-1 { background-color: var(--color-surface-1); }
+.surface-2 { background-color: var(--color-surface-2); }
+.surface-3 { background-color: var(--color-surface-3); }
+.ink { color: var(--color-ink); }
+.ink-muted { color: var(--color-ink-muted); }
+.ink-subtle { color: var(--color-ink-subtle); }
+.line { border-color: var(--color-line); }
+.line-strong { border-color: var(--color-line-strong); }
+
+.elev-1 { box-shadow: var(--elev-1); }
+.elev-2 { box-shadow: var(--elev-2); }
+.elev-3 { box-shadow: var(--elev-3); }
+.elev-4 { box-shadow: var(--elev-4); }
+
+.font-display {
+  font-family: var(--font-display);
+  font-feature-settings: "lnum" 1, "ss01" 1;
+  letter-spacing: -0.022em;
+  font-weight: 700;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Safe-area aware padding helpers */
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px));
+}
+.pt-safe {
+  padding-top: calc(env(safe-area-inset-top, 0px));
+}

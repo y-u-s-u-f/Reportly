@@ -6,21 +6,82 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"
     />
-    <meta name="theme-color" content="#01696f" />
+    <meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0a10" media="(prefers-color-scheme: dark)" />
     <title>Reportly — Civic Issue Reporting</title>
-    <link
-      rel="stylesheet"
-      href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap"
-    />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
+    <script>
+      // Apply saved theme BEFORE first paint, so the splash matches the UI.
+      (function () {
+        try {
+          var t = localStorage.getItem("reportly:theme");
+          if (!t)
+            t = window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          if (t === "dark") document.documentElement.classList.add("dark");
+        } catch (_) {}
+      })();
+    </script>
+    <style>
+      html, body, #root { height: 100%; margin: 0; }
+      body {
+        background: #fafafb;
+        color: #0b0b12;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      }
+      html.dark body { background: #0a0a10; color: #f5f5fa; }
+      #splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 14px;
+        opacity: 1;
+        transition: opacity 0.25s ease;
+      }
+      #splash.fade { opacity: 0; pointer-events: none; }
+      #splash-logo {
+        width: 44px;
+        height: 44px;
+        animation: splash-pulse 1.6s ease-in-out infinite;
+      }
+      #splash-label {
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #8a8a99;
+      }
+      html.dark #splash-label { color: #797989; }
+      @keyframes splash-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(0.94); opacity: 0.6; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash-logo { animation: none; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="splash" aria-hidden="true">
+        <svg id="splash-logo" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#6366f1" />
+              <stop offset="1" stop-color="#4338ca" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M16 2.5c-6 0-10.5 4.3-10.5 10 0 7 8.2 15.1 9.9 16.7a1 1 0 0 0 1.3 0c1.7-1.6 9.8-9.7 9.8-16.7 0-5.7-4.5-10-10.5-10Z"
+            fill="url(#sg)"
+          />
+          <circle cx="16" cy="12.5" r="4" fill="#a3e635" />
+        </svg>
+        <div id="splash-label">Reportly</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

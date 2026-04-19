@@ -38,10 +38,7 @@ router.get("/nearby", async (req, res) => {
     return res.status(400).json({ error: "lat and lon required" });
   }
   const candidates = await prisma.report.findMany({
-    where: {
-      status: { not: "resolved" },
-      ...(issueType ? { issueType } : {}),
-    },
+    where: issueType ? { issueType } : {},
   });
   const nearby = candidates
     .map((r) => ({ ...r, distance: haversineMeters(lat, lon, r.latitude, r.longitude) }))
@@ -89,9 +86,7 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
 
     const photos = await Promise.all((req.files || []).map(persistPhoto));
 
-    const candidates = await prisma.report.findMany({
-      where: { status: { not: "resolved" } },
-    });
+    const candidates = await prisma.report.findMany();
     const newType = (classification.issueType || "").toLowerCase().trim();
     const duplicate = candidates
       .filter((r) => (r.issueType || "").toLowerCase().trim() === newType)
@@ -166,7 +161,6 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
   }
 });
 
-const STATUS_FLOW = ["received", "assigned", "in_progress", "resolved"];
 const SEVERITIES = ["low", "medium", "high"];
 
 router.post("/:id/upvote", async (req, res) => {
@@ -267,42 +261,16 @@ router.post("/:id/comments", async (req, res) => {
   }
 });
 
-router.patch("/:id/status", requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-    let nextStatus = status;
-    if (!nextStatus) {
-      const current = await prisma.report.findUnique({ where: { id } });
-      if (!current) return res.status(404).json({ error: "Report not found" });
-      const idx = STATUS_FLOW.indexOf(current.status);
-      nextStatus = STATUS_FLOW[(idx + 1) % STATUS_FLOW.length];
-    }
-    if (!STATUS_FLOW.includes(nextStatus)) {
-      return res.status(400).json({ error: "invalid status" });
-    }
-    const updated = await prisma.report.update({
-      where: { id },
-      data: { status: nextStatus },
-    });
-    res.json(updated);
-  } catch (err) {
-    console.error("status update error:", err);
-    res.status(500).json({ error: "Failed to update status" });
-  }
-});
-
 router.patch("/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const allowed = ["status", "severity", "department", "issueType", "summary", "description"];
+    const allowed = ["severity", "department", "issueType", "summary", "description"];
     const data = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) data[key] = req.body[key];
     }
-    if (data.status && !STATUS_FLOW.includes(data.status)) {
-      return res.status(400).json({ error: "invalid status" });
-    }
+    if (req.body.resolved === true) data.resolvedAt = new Date();
+    if (req.body.resolved === false) data.resolvedAt = null;
     if (data.severity && !SEVERITIES.includes(data.severity)) {
       return res.status(400).json({ error: "invalid severity" });
     }
@@ -335,7 +303,8 @@ router.post("/:id/status-updates", requireAdmin, async (req, res) => {
     next.push({ text, createdAt: new Date().toISOString() });
 
     const data = { statusUpdates: next };
-    if (req.body?.resolve === true) data.status = "resolved";
+    if (req.body?.resolve === true) data.resolvedAt = new Date();
+    if (req.body?.resolve === false) data.resolvedAt = null;
 
     const updated = await prisma.report.update({
       where: { id: req.params.id },

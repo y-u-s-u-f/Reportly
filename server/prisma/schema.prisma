@@ -16,7 +16,6 @@ model Report {
   department    String?
   severity      String?
   summary       String?
-  status        String   @default("received")
   latitude      Float
   longitude     Float
   address       String?
@@ -25,6 +24,7 @@ model Report {
   comments      Json     @default("[]")
   statusUpdates Json     @default("[]")
   upvoterIds    String[] @default([])
+  resolvedAt    DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
