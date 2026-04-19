@@ -28,6 +28,24 @@ export default function BottomSheet({
     };
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const update = () => {
+      if (!ref.current) return;
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      ref.current.style.bottom = `${inset}px`;
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      if (ref.current) ref.current.style.bottom = "";
+    };
+  }, [open]);
+
   const height =
     size === "full"
       ? "h-[100dvh]"
