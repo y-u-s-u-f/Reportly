@@ -4,6 +4,12 @@ const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const emailCache = new Map(); // key: `${locality}::${department}` → { email, at }
 
+export function clearEmailCache() {
+  const n = emailCache.size;
+  emailCache.clear();
+  return n;
+}
+
 function localityFromAddress(address = "") {
   // Nominatim display_name: "Street, City, County, State, ZIP, Country"
   const parts = address
