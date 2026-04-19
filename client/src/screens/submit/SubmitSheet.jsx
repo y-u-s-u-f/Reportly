@@ -19,6 +19,8 @@ import {
   Pencil,
   Mail,
   ChevronRight,
+  Share2,
+  Users,
 } from "lucide-react";
 import {
   draftAuthorityEmail,
@@ -27,6 +29,7 @@ import {
   submitReport,
   transcribeAudio,
 } from "../../lib/api.js";
+import { shareReport } from "../../lib/share.js";
 import { enqueueReport } from "../../lib/offlineQueue.js";
 import { useAppStore } from "../../store/index.js";
 import { queueSize } from "../../lib/offlineQueue.js";
@@ -153,7 +156,12 @@ export default function SubmitSheet() {
         setResult({ queued: true });
       } else {
         const res = await submitReport(payload);
-        setResult(res);
+        setResult({
+          ...(res.report || {}),
+          duplicate: !!res.duplicate,
+          alreadyCounted: !!res.alreadyCounted,
+          queued: false,
+        });
         refresh();
       }
       pushToast(online ? "Report filed" : "Queued — will send when online", "success");
@@ -164,11 +172,21 @@ export default function SubmitSheet() {
     }
   }
 
-  const title = result ? "Filed" : `Step ${step} of 4`;
+  const title = result
+    ? result.queued
+      ? "Queued"
+      : result.duplicate
+        ? "Added to an existing report"
+        : "Filed"
+    : `Step ${step} of 4`;
   const subtitle = result
-    ? online
-      ? "Thanks — it's on its way."
-      : "Queued — we'll send it when you're back online."
+    ? result.queued
+      ? "We'll send it when you're back online."
+      : result.duplicate
+        ? result.alreadyCounted
+          ? "We found a matching report nearby. Your photos were merged in."
+          : "We found a matching report nearby. You've been counted as affected."
+        : "Thanks — it's on its way."
     : SUBTITLES[step];
 
   return (
@@ -225,6 +243,11 @@ export default function SubmitSheet() {
                   } catch (e) {
                     pushToast(e.message || "Email failed", "error");
                   }
+                }}
+                onShare={async () => {
+                  if (!result.id) return;
+                  const res = await shareReport(result);
+                  if (res.copied) pushToast("Link copied to clipboard", "success");
                 }}
               />
             ) : step === 1 ? (
@@ -699,7 +722,7 @@ function Section({ title, children }) {
   );
 }
 
-function SuccessPanel({ result, onClose, onGoToReport, onNotifyAuthorities }) {
+function SuccessPanel({ result, onClose, onGoToReport, onNotifyAuthorities, onShare }) {
   const [notifying, setNotifying] = useState(false);
   async function handleNotify() {
     setNotifying(true);
@@ -709,6 +732,19 @@ function SuccessPanel({ result, onClose, onGoToReport, onNotifyAuthorities }) {
       setNotifying(false);
     }
   }
+  const heading = result.queued
+    ? "Queued"
+    : result.duplicate
+      ? "Joined"
+      : "Filed";
+  const headingDescription = result.queued
+    ? "We'll send this when you're back online."
+    : result.duplicate
+      ? result.alreadyCounted
+        ? "A matching report already exists here — your photos were merged in."
+        : "A matching report already exists here — you've been added to the affected count."
+      : "Thanks for reporting — the right department has been notified.";
+
   return (
     <SheetBody className="text-center py-8">
       <motion.div
@@ -717,15 +753,15 @@ function SuccessPanel({ result, onClose, onGoToReport, onNotifyAuthorities }) {
         transition={{ ...spring, delay: 0.05 }}
         className="h-20 w-20 mx-auto rounded-full bg-[color:var(--color-accent-400)] text-[color:var(--color-primary-950)] inline-flex items-center justify-center"
       >
-        <CheckCircle2 size={40} strokeWidth={2.4} />
+        {result.duplicate ? (
+          <Users size={36} strokeWidth={2.4} />
+        ) : (
+          <CheckCircle2 size={40} strokeWidth={2.4} />
+        )}
       </motion.div>
-      <h3 className="font-display text-[28px] mt-5 ink">
-        {result.queued ? "Queued" : "Filed"}
-      </h3>
+      <h3 className="font-display text-[28px] mt-5 ink">{heading}</h3>
       <p className="ink-muted mt-2 text-[14px] leading-relaxed max-w-xs mx-auto">
-        {result.queued
-          ? "We'll send this when you're back online."
-          : "Thanks for reporting — the right department has been notified."}
+        {headingDescription}
       </p>
 
       {!result.queued && (result.issueType || result.department || result.severity) && (
@@ -741,6 +777,12 @@ function SuccessPanel({ result, onClose, onGoToReport, onNotifyAuthorities }) {
             <p className="text-[12px] ink-muted leading-relaxed max-w-xs">
               {result.summary}
             </p>
+          )}
+          {result.duplicate && typeof result.affectedCount === "number" && (
+            <div className="mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-[color:var(--color-primary-700)]">
+              <Users size={12} />
+              {result.affectedCount} {result.affectedCount === 1 ? "person" : "people"} affected
+            </div>
           )}
         </div>
       )}
@@ -774,7 +816,18 @@ function SuccessPanel({ result, onClose, onGoToReport, onNotifyAuthorities }) {
             Go to problem
           </Button>
         )}
-        <Button variant="ghost" size="md" fullWidth onClick={onClose}>
+        {result.id && (
+          <Button
+            variant="ghost"
+            size="md"
+            fullWidth
+            onClick={onShare}
+            icon={<Share2 size={16} />}
+          >
+            Share with neighbors
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" fullWidth onClick={onClose}>
           Done
         </Button>
       </div>
