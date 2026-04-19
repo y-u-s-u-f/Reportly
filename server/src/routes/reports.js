@@ -79,7 +79,9 @@ router.post("/", upload.array("photos", 3), async (req, res) => {
     const candidates = await prisma.report.findMany({
       where: { status: { not: "resolved" } },
     });
+    const newType = (classification.issueType || "").toLowerCase().trim();
     const duplicate = candidates
+      .filter((r) => (r.issueType || "").toLowerCase().trim() === newType)
       .map((r) => ({ r, distance: haversineMeters(lat, lon, r.latitude, r.longitude) }))
       .filter((x) => x.distance <= DUPLICATE_RADIUS_M)
       .sort((a, b) => a.distance - b.distance)[0]?.r;
