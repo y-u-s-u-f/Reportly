@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router";
 import TopBar from "./TopBar.jsx";
 import BottomNav from "./BottomNav.jsx";
 import ToastStack from "../components/ui/Toast.jsx";
+import Onboarding, { hasOnboarded } from "./Onboarding.jsx";
 import { useAppStore } from "../store/index.js";
 import { flushQueue, queueSize } from "../lib/offlineQueue.js";
 import { ensureNotificationPermission } from "../lib/notify.js";
@@ -14,6 +15,12 @@ export default function AppShell() {
   const setSyncing = useAppStore((s) => s.setSyncing);
   const refresh = useAppStore((s) => s.refresh);
   const pushToast = useAppStore((s) => s.pushToast);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window === "undefined") return false;
+    if (hasOnboarded()) return false;
+    // Skip onboarding on deep-linked report pages — let shared links open clean.
+    return !window.location.pathname.startsWith("/r/");
+  });
 
   useEffect(() => {
     ensureNotificationPermission();
@@ -54,6 +61,9 @@ export default function AppShell() {
       </main>
       <BottomNav />
       <ToastStack />
+      {showOnboarding && (
+        <Onboarding onDone={() => setShowOnboarding(false)} />
+      )}
     </div>
   );
 }
